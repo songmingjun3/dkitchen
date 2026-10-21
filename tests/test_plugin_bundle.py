@@ -119,13 +119,98 @@ def test_a_missing_launcher_blocks_installation(monkeypatch):
     assert plugin.install(dry_run=True) == 1
 
 
-def test_dry_run_does_not_claim_to_have_installed(monkeypatch, capsys):
+def test_dry_run_names_every_step_and_installs_nothing(monkeypatch, capsys):
     monkeypatch.setattr(plugin, "install_into",
                         lambda profile: pytest.fail("a dry run must not install"))
+    monkeypatch.setattr(plugin, "ensure_routes",
+                        lambda profile: pytest.fail("a dry run must not add bundles"))
     assert plugin.install(dry_run=True) == 0
     err = capsys.readouterr().err
-    assert "would install" in err
+    assert "would create profile" in err
+    assert "route bundle(s)" in err
     assert "ding: installed" not in err
+
+
+def test_the_route_bundles_are_the_ones_that_publish_routes():
+    """Each named bundle carries a provider route in its own patch, or at runtime."""
+    assert "dsh-wtq-pool" in plugin.ROUTE_BUNDLES          # xdpool-*, at runtime
+    assert "dsh-llm-agentrouter" in plugin.ROUTE_BUNDLES   # agentrouter, in its patch
+    assert plugin.ACP_BUNDLE == "@deepseek-ai/dsh-acp-app"
+
+
+def test_routes_present_reports_only_what_the_profile_lacks(tmp_path, monkeypatch):
+    monkeypatch.setattr(plugin.paths, "dsh_home", lambda: tmp_path)
+    profile = tmp_path / "profiles" / "kitchen"
+    profile.mkdir(parents=True)
+    (profile / "package.json").write_text(
+        json.dumps({"dependencies": {"dsh-wtq-pool": "^1.0.4"}}), encoding="utf-8")
+    missing = plugin.routes_present("kitchen")
+    assert "dsh-wtq-pool" not in missing
+    assert set(missing) == set(plugin.ROUTE_BUNDLES) - {"dsh-wtq-pool"}
+
+
+def test_routes_present_reports_everything_for_a_profile_that_does_not_exist(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(plugin.paths, "dsh_home", lambda: tmp_path)
+    assert set(plugin.routes_present("absent")) == set(plugin.ROUTE_BUNDLES)
+
+
+def test_ensure_routes_adds_only_the_missing_ones(tmp_path, monkeypatch):
+    monkeypatch.setattr(plugin.paths, "dsh_home", lambda: tmp_path)
+    profile = tmp_path / "profiles" / "kitchen"
+    profile.mkdir(parents=True)
+    (profile / "package.json").write_text(
+        json.dumps({"dependencies": {plugin.ROUTE_BUNDLES[0]: "*"}}), encoding="utf-8")
+    added = {}
+    monkeypatch.setattr(plugin, "_launcher_add",
+                        lambda target, spec: added.setdefault(spec, target))
+    assert plugin.ensure_routes("kitchen") == list(plugin.ROUTE_BUNDLES[1:])
+    assert set(added) == set(plugin.ROUTE_BUNDLES[1:])
+
+
+def test_install_creates_the_kitchen_profile_and_its_routes(monkeypatch, capsys):
+    """A machine with no donor profile must still come out with something runnable."""
+    calls = []
+    monkeypatch.setattr(plugin.paths, "profile_dir", lambda name: Path("/nowhere") / name)
+    monkeypatch.setattr(plugin, "_settings_for_install", lambda: object())
+    monkeypatch.setattr(plugin, "_init_profile",
+                        lambda settings, profile: calls.append(("init", profile)) or 0)
+    monkeypatch.setattr(plugin, "ensure_routes",
+                        lambda profile: calls.append(("routes", profile)) or ["dsh-wtq-pool"])
+    monkeypatch.setattr(plugin, "install_into",
+                        lambda profile: calls.append(("bundle", profile)))
+    assert plugin.install(profile="desktop") == 0
+    assert ("init", plugin.KITCHEN_PROFILE) in calls
+    assert ("routes", plugin.KITCHEN_PROFILE) in calls
+    assert ("bundle", "desktop") in calls
+    err = capsys.readouterr().err
+    assert "creating the 'dkitchen' profile" in err
+
+
+def test_a_failed_kitchen_profile_stops_before_installing_the_gui_bundle(
+        monkeypatch, capsys):
+    """A profile that cannot be composed makes every other step pointless."""
+    monkeypatch.setattr(plugin.paths, "profile_dir", lambda name: Path("/nowhere") / name)
+    monkeypatch.setattr(plugin, "_settings_for_install", lambda: object())
+    monkeypatch.setattr(plugin, "_init_profile", lambda settings, profile: 1)
+    monkeypatch.setattr(plugin, "ensure_routes",
+                        lambda profile: pytest.fail("must not add routes to a broken profile"))
+    monkeypatch.setattr(plugin, "install_into",
+                        lambda profile: pytest.fail("must not install the bundle"))
+    assert plugin.install(profile="desktop") == 1
+    assert "could not create profile" in capsys.readouterr().err
+
+
+def test_an_existing_kitchen_profile_is_not_reinitialized(monkeypatch, capsys):
+    """`harness init` refuses to overwrite without `--force`, so only create when absent."""
+    monkeypatch.setattr(plugin.paths, "profile_dir", lambda name: BUNDLE)
+    monkeypatch.setattr(plugin, "_init_profile",
+                        lambda settings, profile: pytest.fail("must not rewrite a profile"))
+    monkeypatch.setattr(plugin, "ensure_routes", lambda profile: [])
+    monkeypatch.setattr(plugin, "install_into", lambda profile: None)
+    assert plugin.install(profile="desktop") == 0
+    err = capsys.readouterr().err
+    assert "creating the" not in err
 
 
 def test_install_uses_the_harness_launcher_and_names_the_profile(monkeypatch, capsys):

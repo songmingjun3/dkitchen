@@ -755,10 +755,32 @@ def show_jobs() -> None:
 
 # -- harness profile and skills -----------------------------------------------------------
 
+#: `pnpm-workspace.yaml` for a kitchen profile.
+#:
+#: `packages: []` looks like the honest way to say "one package, no workspace", but pnpm
+#: then refuses to install anything into the profile at all — `dsh plugin --profile
+#: dkitchen add <pkg>` fails in the linking step, which is how `ding plugin install` adds
+#: the route bundles. A workspace naming its own directory, with the hoisted linker the
+#: desktop profile also uses, is what makes an ordinary `add` work.
+PNPM_WORKSPACE = """\
+packages:
+  - .
+
+nodeLinker: hoisted
+autoInstallPeers: false
+"""
+
 PROFILE_TEMPLATE = """\
 # The dkitchen profile: the ACP application used by `ding` to create and drive kitchen
 # sessions. It is written by `ding harness init`; edit it to change the composition, then
 # restart the broker (`ding down` and let the next command start it again).
+#
+# Provider routes carried over from an existing profile, so the kitchen's stations
+# have models to run. `ding config models` lists what they offer.
+#
+# A machine with no configured profile has nothing to carry over, so nothing follows. The
+# file must still be a top-level array: the loader rejects an empty overlay outright, so
+# an empty `[]` is written rather than no content at all.
 {extra}
 """
 
@@ -798,9 +820,9 @@ def harness_init(config_: config.Config, *, profile: str | None, force: bool) ->
     (target / "cordis.yml").write_text(
         "# dsh profile root — the tree is composed from the bundles in package.json.\n[]\n",
         encoding="utf-8")
-    (target / "pnpm-workspace.yaml").write_text("packages: []\n", encoding="utf-8")
+    (target / "pnpm-workspace.yaml").write_text(PNPM_WORKSPACE, encoding="utf-8")
     (target / "cordis.patch.yml").write_text(
-        PROFILE_TEMPLATE.format(extra=donor["patch"]), encoding="utf-8")
+        PROFILE_TEMPLATE.format(extra=donor["patch"] or "[]"), encoding="utf-8")
     if donor["link"]:
         _link_dependencies(target, donor["path"])
     print(f"ding: wrote profile {name} at {target} with bundles {', '.join(bundles)}")

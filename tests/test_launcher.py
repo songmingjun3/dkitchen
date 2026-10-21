@@ -148,6 +148,44 @@ def test_harness_init_leaves_out_the_plugin_that_would_mount_the_mcp_server(
     assert "dsh-dkitchen" not in (package.get("dependencies") or {})
 
 
+def test_a_profile_with_no_donor_still_writes_a_loader_readable_patch(
+        tmp_path, monkeypatch, capsys):
+    """With no donor there is nothing to carry over, but the file must stay an array.
+
+    The loader rejects an empty overlay outright ("must be a top-level YAML array"), so a
+    fresh machine used to get a profile `dsh` could not compose at all.
+    """
+    home = paths.dsh_home()          # no profile written: no donor to copy
+    monkeypatch.setattr(ding.paths, "dsh_executable", lambda: sys.executable)
+    monkeypatch.setattr(ding.subprocess, "run",
+                        lambda *a, **k: type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})())
+    root = tmp_path / "repo"
+    root.mkdir()
+    assert ding.harness_init(config.load(root), profile="kitchen", force=False) == 0
+    target = home / "profiles" / "kitchen"
+    body = [line for line in (target / "cordis.patch.yml").read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")]
+    assert body == ["[]"], f"an empty overlay must still be an array, got {body!r}"
+    package = json.loads((target / "package.json").read_text(encoding="utf-8"))
+    assert package["dsh"]["profile"]["bundles"] == [
+        "@deepseek-ai/dsh-base", "@deepseek-ai/dsh-acp-app"]
+
+
+def test_the_kitchen_profile_workspace_lets_pnpm_install_into_it(tmp_path, monkeypatch, capsys):
+    """`packages: []` makes `dsh plugin add` fail in linking, so route bundles cannot land."""
+    home = paths.dsh_home()
+    monkeypatch.setattr(ding.paths, "dsh_executable", lambda: sys.executable)
+    monkeypatch.setattr(ding.subprocess, "run",
+                        lambda *a, **k: type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})())
+    root = tmp_path / "repo"
+    root.mkdir()
+    assert ding.harness_init(config.load(root), profile="kitchen", force=False) == 0
+    workspace = (home / "profiles" / "kitchen" / "pnpm-workspace.yaml").read_text(encoding="utf-8")
+    assert "packages: []" not in workspace
+    assert "- ." in workspace
+    assert "nodeLinker: hoisted" in workspace
+
+
 def test_harness_init_refuses_to_overwrite_without_force(tmp_path, monkeypatch, capsys):
     home = paths.dsh_home()
     write_profile(home, "kitchen", ["@deepseek-ai/dsh-base"])

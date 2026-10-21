@@ -40,6 +40,28 @@ DESKTOP_PROFILE = "desktop"
 #: Where `ding plugin install` goes when no profile is named.
 DEFAULT_PROFILE = DESKTOP_PROFILE
 
+#: The profile `ding` drives sessions through, which `harness init` writes.
+KITCHEN_PROFILE = paths.DEFAULT_PROFILE
+
+#: Bundles that publish the provider routes a station can select, installable from the
+#: registry so a machine with no configured profile can still run a kitchen.
+#:
+#: They are named rather than discovered because the routes live *inside* each plugin's own
+#: `cordis.patch.yml` — `dsh-llm-agentrouter` declares its `agentrouter` provider there,
+#: and `dsh-wtq-pool` registers `xdpool-*` at runtime — so installing the plugin is the
+#: only way to get the route. Copying them from a donor profile (what `harness init` does)
+#: cannot work on a fresh machine, where no donor has them yet.
+ROUTE_BUNDLES = (
+    "dsh-wtq-pool",
+    "dsh-llm-agentrouter",
+    "dsh-openai-codex-auth",
+    "dsh-our-free-model",
+)
+
+#: The bundle that turns a profile into an ACP application, which is what `ding` drives.
+#: A route-only profile cannot serve sessions without it.
+ACP_BUNDLE = "@deepseek-ai/dsh-acp-app"
+
 
 def bundle_dir() -> Path:
     """The bundle directory that ships inside the installed `dkitchen` package."""
@@ -82,6 +104,19 @@ def check() -> list[tuple[str, bool, str]]:
     gh = shutil.which("gh")
     rows.append(("gh (ticket tools)", True,
                  gh or "not installed; relay/merge/log will report it when called"))
+
+    # The kitchen profile is what `ding` drives sessions through. It need not exist yet —
+    # `install` writes it — but a machine with no donor profile and no route bundles is
+    # reported here, because that combination produces a profile nothing can run on.
+    kitchen = paths.profile_dir(KITCHEN_PROFILE)
+    if (kitchen / "package.json").is_file():
+        missing = routes_present(KITCHEN_PROFILE)
+        rows.append((f"kitchen profile ({KITCHEN_PROFILE})", True,
+                     str(kitchen) if not missing
+                     else f"{kitchen}; install adds {', '.join(missing)}"))
+    else:
+        rows.append((f"kitchen profile ({KITCHEN_PROFILE})", True,
+                     f"not created yet; install writes it at {kitchen}"))
     return rows
 
 
@@ -110,8 +145,8 @@ def installed_profiles() -> list[str]:
     return found
 
 
-def install_into(profile: str) -> None:
-    """Add the bundle to `profile` through the harness's own launcher.
+def _launcher_add(profile: str, spec: str) -> None:
+    """Add one package spec to `profile` through the harness's own launcher.
 
     `dsh plugin --profile <name> add <spec>` forwards to pnpm inside the profile and then
     appends the package to `dsh.profile.bundles`, which is exactly what makes the harness
@@ -123,7 +158,6 @@ def install_into(profile: str) -> None:
         executable = paths.dsh_executable()
     except ValueError as error:
         raise ValueError(str(error)) from error
-    spec = f"link:{bundle_dir()}"
     command = [str(executable), "plugin", "--profile", profile, "add", spec]
     try:
         # pnpm writes UTF-8; a Windows console's GBK default would fail to decode it and
@@ -132,12 +166,61 @@ def install_into(profile: str) -> None:
                                 encoding="utf-8", errors="replace",
                                 env={**os.environ, "PYTHONIOENCODING": "utf-8"})
     except subprocess.TimeoutExpired:
-        raise ValueError(f"dsh plugin add did not finish within 600s")
+        raise ValueError(f"dsh plugin add {spec} did not finish within 600s")
     except OSError as error:
         raise ValueError(f"cannot run the harness launcher: {error}") from error
     if result.returncode:
         detail = (result.stderr or result.stdout).strip()
-        raise ValueError(detail or f"dsh plugin add exited {result.returncode}")
+        raise ValueError(detail or f"dsh plugin add {spec} exited {result.returncode}")
+
+
+def install_into(profile: str) -> None:
+    """Add this package's bundle to `profile`."""
+    _launcher_add(profile, f"link:{bundle_dir()}")
+
+
+def profile_packages(profile: str) -> dict:
+    """A profile's declared dependencies, empty when it has no manifest yet."""
+    manifest = paths.profile_dir(profile) / "package.json"
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    dependencies = data.get("dependencies")
+    return dependencies if isinstance(dependencies, dict) else {}
+
+
+def routes_present(profile: str) -> list[str]:
+    """Which route bundles the profile has not declared yet."""
+    have = profile_packages(profile)
+    return [name for name in ROUTE_BUNDLES if name not in have]
+
+
+def ensure_routes(profile: str) -> list[str]:
+    """Install every route bundle the profile lacks. Returns the names it added.
+
+    `harness init` copies a donor profile's plugins, which is the right thing on a machine
+    that already runs the harness. On a fresh machine there is no donor to copy, so the
+    kitchen profile comes out with no provider routes and no session can run. Naming the
+    bundles here is what makes a first-time install self-sufficient.
+    """
+    added: list[str] = []
+    for name in routes_present(profile):
+        _launcher_add(profile, name)
+        added.append(name)
+    return added
+
+
+def _settings_for_install():
+    """The repo settings `harness init` needs, resolved from the current directory."""
+    from dkitchen import config as config_module
+    return config_module.load(Path.cwd())
+
+
+def _init_profile(settings, profile: str) -> int:
+    """Write the kitchen profile through `ding harness init`, the supported path."""
+    from dkitchen import ding as ding_module
+    return ding_module.harness_init(settings, profile=profile, force=False)
 
 
 def install(*, dry_run: bool = False, profile: str | None = None) -> int:
@@ -151,8 +234,32 @@ def install(*, dry_run: bool = False, profile: str | None = None) -> int:
     target = profile or DEFAULT_PROFILE
     bundle = bundle_dir()
     if dry_run:
-        print(f"\nding: would install {bundle} into profile {target!r}", file=sys.stderr)
+        print(f"\nding: would create profile {KITCHEN_PROFILE!r} if missing, add "
+              f"{', '.join(routes_present(KITCHEN_PROFILE)) or 'no'} route bundle(s), "
+              f"and install {bundle} into profile {target!r}", file=sys.stderr)
         return 0
+    # 1. The kitchen profile, which `ding` drives sessions through. Asking the harness to
+    #    compose it is the only supported way to write it.
+    if not (paths.profile_dir(KITCHEN_PROFILE) / "package.json").is_file():
+        print(f"ding: creating the {KITCHEN_PROFILE!r} profile", file=sys.stderr)
+        code = _init_profile(_settings_for_install(), KITCHEN_PROFILE)
+        if code:
+            print(f"ding: could not create profile {KITCHEN_PROFILE!r}; see the message above.",
+                  file=sys.stderr)
+            return code
+    # 2. The route bundles that profile needs, so a machine with no donor profile still
+    #    has something to run. Without them the profile composes but cannot serve a session.
+    try:
+        added = ensure_routes(KITCHEN_PROFILE)
+    except ValueError as error:
+        print(f"\nding: could not add the route bundles: {error}", file=sys.stderr)
+        return 1
+    if added:
+        print(f"ding: added route bundle(s) to {KITCHEN_PROFILE!r}: {', '.join(added)}",
+              file=sys.stderr)
+    else:
+        print(f"ding: profile {KITCHEN_PROFILE!r} already has every route bundle", file=sys.stderr)
+    # 3. The GUI half: the MCP bundle, in the profile a user opens conversations in.
     try:
         install_into(target)
     except ValueError as error:
