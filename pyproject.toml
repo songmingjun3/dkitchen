@@ -44,7 +44,8 @@ Issues = "https://github.com/917Dhj/dkitchen/issues"
 where = ["src"]
 
 [tool.setuptools.package-data]
-dkitchen = ["skills/**/*.md", "skills/**/*.py", "kitchen/**/*.md"]
+dkitchen = ["skills/**/*.md", "skills/**/*.py", "kitchen/**/*.md",
+            "harness/**/*.json", "harness/**/*.yml", "harness/**/*.svg", "harness/**/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

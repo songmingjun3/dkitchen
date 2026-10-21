@@ -106,7 +106,7 @@ ding logs train                                       # 这个任务的最新输
 
 会话可以按 id、按名字、或者按 `'#42'` 这样的 issue 来寻址；`ding` 会找到拥有那张票的会话。在 Linux 上，`ding board` 还会列出没用 `ding` 启动的长任务，让你看到哪些任务结束时没人会被唤醒。
 
-`ding` 通过 Agent Client Protocol 驱动 harness：保持一条长连接，每个会话一个消息队列。完整说明见 [docs/ding.md](docs/ding.md)。
+`ding` 通过 Agent Client Protocol 驱动 harness：保持一条长连接，每个会话一个消息队列。在 harness 里，`dsh-dkitchen` 插件把同一批命令暴露成 MCP 工具，会话不必开终端就能跑厨房。完整说明见 [docs/ding.md](docs/ding.md)。
 
 ### 📋 厨房的日常动作
 
@@ -137,14 +137,22 @@ ding logs train                                       # 这个任务的最新输
 pipx install dkitchen
 ```
 
-### 2. 写 harness profile 和 skill
+### 2. 把它装进 harness
 
 ```bash
-ding harness init      # 一个给厨房用的 DeepSeek Harness profile，继承你已有的 provider
-ding skill install     # 把初始化 skill 装到 .agents/skills/setup-dkitchen/
+ding plugin install    # 把 dsh-dkitchen bundle 装进你的 desktop profile
 ```
 
-### 3. 配置你的厨房
+重启 harness。它的 **Plugins** 页面里会出现 `dkitchen`，之后每个会话都能调用
+`mcp__dkitchen__new_session`、`mcp__dkitchen__board`、`mcp__dkitchen__launch` 等工具——
+和下面的命令行是同一批命令，只是不用离开对话。这个 bundle 是纯声明式的：它插入的是
+harness 自带的 MCP 客户端，指向 `ding mcp-serve`。
+
+### 3. 装 skill 并配置你的厨房
+
+```bash
+ding skill install     # 把初始化 skill 装到 .agents/skills/setup-dkitchen/
+```
 
 在你的仓库里开一个 DeepSeek Harness 会话，运行：
 

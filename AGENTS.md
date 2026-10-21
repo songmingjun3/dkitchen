@@ -23,6 +23,9 @@
 | `src/dkitchen/ding.py` | The CLI |
 | `src/dkitchen/skills/setup-dkitchen/` | The setup skill, shipped in the package and installed by `ding skill install` |
 | `src/dkitchen/kitchen/` | The station rules the setup skill renders into a repository, shipped as package data |
+| `src/dkitchen/mcp.py` | The MCP server on stdio, which turns the CLI into tools a harness session can call |
+| `src/dkitchen/plugin.py` | Installing the `dsh-dkitchen` bundle through the harness's own launcher |
+| `src/dkitchen/harness/dsh-dkitchen/` | The plugin bundle: a manifest, a `cordis.patch.yml`, locale files, and an icon |
 
 ## Changing the harness integration
 

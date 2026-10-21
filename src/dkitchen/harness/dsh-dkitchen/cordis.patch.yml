@@ -1,0 +1,22 @@
+# Mount dkitchen's tools into this profile through the harness's own MCP client.
+#
+# `dsh-mcp-client` ships with the harness, so this bundle declares no dependencies: it
+# only inserts one row naming the client and the command that speaks MCP.
+#
+# `failOnStartupError: false` is deliberate. When `ding` is not installed, or a session
+# cannot reach the broker, the rest of the harness must still start: the dkitchen tools
+# then report the problem on call instead of taking the whole profile down. `ding plugin
+# check` is what catches that case before installation.
+- insert:
+    - id: mcp-dkitchen
+      name: '@deepseek-ai/dsh-mcp-client'
+      disabled: false
+      config:
+        serverName: dkitchen
+        transport: stdio
+        command: ding
+        args: ['mcp-serve']
+        toolCallTimeoutMs: 180000
+        failOnStartupError: false
+        reconnect:
+          enabled: true

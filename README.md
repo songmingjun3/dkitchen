@@ -106,7 +106,7 @@ ding logs train                                       # that job's latest output
 
 You can address a session by its id, its name, or a GitHub issue such as `'#42'`; `ding` finds the session that owns that ticket. On Linux, `ding board` also lists long-running processes that were started without `ding`, so you can spot jobs nobody will be woken for.
 
-`ding` drives the harness over the Agent Client Protocol, keeping one long-lived connection and one message queue per session. The full guide is in [docs/ding.md](https://github.com/917Dhj/dkitchen/blob/main/docs/ding.md).
+`ding` drives the harness over the Agent Client Protocol, keeping one long-lived connection and one message queue per session. Inside the harness, the `dsh-dkitchen` plugin exposes the same commands as MCP tools, so a session can run the kitchen without a terminal. The full guide is in [docs/ding.md](https://github.com/917Dhj/dkitchen/blob/main/docs/ding.md).
 
 ### 📋 The kitchen's routines
 
@@ -137,14 +137,22 @@ The rules every station follows live in [src/dkitchen/kitchen/](https://github.c
 pipx install dkitchen
 ```
 
-### 2. Write the harness profile and the skill
+### 2. Make it part of the harness
 
 ```bash
-ding harness init      # a DeepSeek Harness profile for the kitchen, inheriting your providers
-ding skill install     # the setup skill, into .agents/skills/setup-dkitchen/
+ding plugin install    # adds the dsh-dkitchen bundle to your desktop profile
 ```
 
-### 3. Set up your kitchen
+Restart the harness. Its **Plugins** page now lists `dkitchen`, and every session can call
+`mcp__dkitchen__new_session`, `mcp__dkitchen__board`, `mcp__dkitchen__launch`, and the rest
+— the same commands as below, without leaving the conversation. The bundle is declarative:
+it inserts the harness's own MCP client pointed at `ding mcp-serve`.
+
+### 3. Write the skill and set up your kitchen
+
+```bash
+ding skill install     # the setup skill, into .agents/skills/setup-dkitchen/
+```
 
 In a DeepSeek Harness session inside your repo, run:
 

@@ -17,6 +17,7 @@ Every session it drives is a real DeepSeek Harness session: the harness creates 
 - [Run a long job: `launch`, `logs`, `stop`](#run-a-long-job-launch-logs-stop)
 - [Wrap a command yourself: `run`](#wrap-a-command-yourself-run)
 - [Stations and models: `config`](#stations-and-models-config)
+- [Use dkitchen inside the harness: `plugin`](#use-dkitchen-inside-the-harness-plugin)
 - [The harness profile: `harness init`](#the-harness-profile-harness-init)
 - [Kitchen commands](#kitchen-commands)
 - [Files `ding` keeps](#files-ding-keeps)
@@ -49,8 +50,21 @@ python -m venv ~/.venvs/dkitchen
 
 ## A quick tour
 
+The shortest path is to make dkitchen part of the harness, so its tools appear in every
+session:
+
 ```bash
-ding harness init                                    # write the profile ding boots
+ding plugin install                                 # add the bundle to your desktop profile
+```
+
+Then, from any harness session, the model can call `mcp__dkitchen__new_session`,
+`mcp__dkitchen__board`, `mcp__dkitchen__launch`, and the rest. Nothing else is required:
+no profile of dkitchen's own, and no separate broker to start.
+
+From a terminal, the same capabilities:
+
+```bash
+ding harness init                                    # only for `ding launch`/`watch` wake-ups
 ding up                                              # start the broker
 ding new --cwd /work/repo --name 'Evaluation runner' --station executor --message 'Review the evaluation config.'
 ding board                                           # sessions in this repo, their tickets and jobs
@@ -364,7 +378,59 @@ ding config set harness.profile lab
 
 `enable`/`disable` write `[kitchen] stations`; `set` writes one dotted key, creating the table it needs and keeping everything else. `[models.<station>]` set per-station routes; a station without one inherits `[harness] default_provider` / `default_model`.
 
+## Use dkitchen inside the harness: `plugin`
+
+The harness loads plugins as **bundles**: a package whose `package.json` points at a
+`cordis.patch.yml` that inserts rows into the profile's composition. dkitchen ships one,
+and it is purely declarative — it inserts the harness's own
+`@deepseek-ai/dsh-mcp-client` row pointed at `ding mcp-serve`:
+
+```yaml
+- insert:
+    - id: mcp-dkitchen
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: dkitchen
+        transport: stdio
+        command: ding
+        args: ['mcp-serve']
+```
+
+Because the client ships with the harness, the bundle declares no dependencies and needs
+no JavaScript of its own. Once installed, the harness starts `ding mcp-serve` as a
+subprocess and registers its tools on the model's tool list:
+
+```bash
+ding plugin check                    # what the bundle needs, and what is missing
+ding plugin install                  # check, then install into the `desktop` profile
+ding plugin install --profile lab    # a different profile
+ding plugin install --dry-run        # run the checks, change nothing
+```
+
+Every tool is named `mcp__dkitchen__<name>`: `new_session`, `send`, `read`, `status`,
+`info`, `rename`, `board`, `approve`, `relay`, `merge`, `log`, `launch`, `logs`, and
+`stop`. They forward to the same CLI commands documented here, so a session created from
+the harness and one created from a terminal are the same kind of session.
+
+`plugin install` runs `dsh plugin --profile <name> add link:<bundle dir>`, which installs
+the package and appends it to the profile's `dsh.profile.bundles` — the same operation the
+harness's own plugin manager performs. It refuses to install when a prerequisite is
+missing, because a bundle that cannot reach `ding` produces a plugin whose every tool call
+fails. `gh` is a warning, not a refusal: only `relay`, `merge`, and `log` need it.
+
+The bundle sets `failOnStartupError: false` on purpose. A missing `ding` then leaves the
+dkitchen tools unavailable instead of preventing the whole profile from starting.
+
+Restart the harness after installing, or reload the profile where HMR is enabled. The
+`desktop` profile belongs to the Electron application, so its composition cannot be dumped
+or inspected from the CLI; the harness's **Plugins** page is where to confirm the bundle
+and its `dkitchen` row.
+
 ## The harness profile: `harness init`
+
+**You only need this for `ding launch` and `ding watch`**, which wake a session by sending
+it a message; that needs a harness profile dkitchen owns. Installing the [plugin](#use-dkitchen-inside-the-harness-plugin)
+does not: the harness starts `ding mcp-serve` itself and drives it over MCP.
 
 ```bash
 ding harness init                 # write $DSH_HOME/profiles/dkitchen
@@ -387,6 +453,8 @@ These commands carry out the kitchen's routine steps, as the house rules in [src
 | `ding watch` | Orchestrator, in the background | Waits for GitHub activity the orchestrator must handle, prints it as one batch, and exits. See [While the user is away](../src/dkitchen/kitchen/modules/unattended.md). |
 | `ding check-refs draft.md` | Verifier | Checks every `` `file:line` `` in a draft comment (a name written right next to it must appear on that line) and every `sha256`, against `origin/main` or `--root DIR`. Exits 1 when something is wrong. |
 | `ding skill install` | Setup | Copies dkitchen's setup skill into `<repo>/.agents/skills/setup-dkitchen/`. |
+| `ding plugin install` | Setup | Checks this machine, then installs the harness plugin bundle into a profile. See [Use dkitchen inside the harness](#use-dkitchen-inside-the-harness-plugin). |
+| `ding mcp-serve` | Setup, indirectly | Serves dkitchen's tools over MCP on stdin/stdout. The plugin's `cordis.patch.yml` names it; you do not run it by hand. |
 
 **Before merging, `ding merge` reads the executor's latest status block.** The ticket is `--ticket N`. Without it, `ding` takes the one ticket mentioned in the PR body (as `#N` or a link) that has executor comments, and refuses when there are none or several. It prints that ticket's latest executor status block, and merges only when its second field (*Waiting on*) names the orchestrator. An executor that has since said it is still changing the PR, or that waits on nobody, blocks the merge, even if the review already passed. Use `--no-ticket` for a PR that belongs to no ticket. There is no override: when the executor cannot answer, the user merges by hand.
 

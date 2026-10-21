@@ -336,11 +336,19 @@ def send_task(args, config_: config.Config) -> int:
 
 
 def _append(path: Path, value: object) -> None:
+    """Append one JSON line, so concurrent writers never interleave inside a record.
+
+    An append-mode write is not atomic on Windows for a record larger than the buffer, so
+    two wrappers appending at once can splice their bytes together and leave a line that
+    no longer parses. The lock lives beside the file and is the same one the rest of the
+    state directory uses.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(value, ensure_ascii=False, sort_keys=True) + "\n")
-        handle.flush()
-        os.fsync(handle.fileno())
+    with locks.exclusive(path.with_name(path.name + ".lock"), blocking=True):
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(value, ensure_ascii=False, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
 
 
 def read_task(args, config_: config.Config) -> int:
@@ -1199,6 +1207,18 @@ def main(argv=None) -> int:
     sub.add_argument("--max-errors", type=int, default=10,
                      help="Consecutive failed polls before exiting (default: 10)")
 
+    commands.add_parser("mcp-serve",
+                        help="Serve dkitchen's tools over MCP on stdio, for the DeepSeek Harness")
+
+    plugin = commands.add_parser("plugin", help="Install the DeepSeek Harness plugin bundle")
+    plugin_sub = plugin.add_subparsers(dest="plugin_action", required=True)
+    plugin_install = plugin_sub.add_parser("install",
+                                           help="Check this machine, then install the bundle")
+    plugin_install.add_argument("--profile", help="Harness profile to install into (default: desktop)")
+    plugin_install.add_argument("--dry-run", action="store_true",
+                                help="Run the checks and print what would happen")
+    plugin_sub.add_parser("check", help="Report what the plugin needs and what is missing")
+
     sub = commands.add_parser("check-refs", help="Check file:line and sha256 references in a draft comment")
     sub.add_argument("draft", help="Draft comment file")
     where = sub.add_mutually_exclusive_group()
@@ -1294,6 +1314,12 @@ def main(argv=None) -> int:
             return harness_init(settings_, profile=args.profile, force=args.force)
         if args.action == "skill":
             return skill_install(args)
+        if args.action == "mcp-serve":
+            from dkitchen import mcp
+            return mcp.serve()
+        if args.action == "plugin":
+            from dkitchen import plugin
+            return plugin.main(args, settings_)
         if args.action == "check-refs":
             from dkitchen import refs
             return refs.check_refs(args)

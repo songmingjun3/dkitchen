@@ -168,6 +168,33 @@ def test_run_registry_is_append_only_and_private(tmp_path, monkeypatch):
     assert all(os.path.isabs(row["record"]) and os.path.isabs(row["cwd"]) for row in rows)
 
 
+def test_appending_a_large_record_from_two_processes_never_splices_a_line(tmp_path):
+    """An append-mode write is not atomic on Windows for a record bigger than the buffer.
+
+    Two writers appending at once used to splice their bytes together, leaving a line that
+    no longer parsed; `_append` now takes a lock beside the file so every line survives.
+    """
+    target = tmp_path / "runs.jsonl"
+    script = (
+        "import sys\n"
+        "from pathlib import Path\n"
+        "sys.path.insert(0, %r)\n"
+        "from dkitchen import ding\n"
+        "for index in range(20):\n"
+        "    ding._append(Path(sys.argv[1]), {'writer': sys.argv[2], 'index': index,"
+        " 'pad': '界' * 4000})\n"
+    ) % str(Path(__file__).resolve().parents[1] / "src")
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda name: subprocess.run(
+            [sys.executable, "-c", script, str(target), name],
+            capture_output=True, text=True, timeout=120), ["first", "second"]))
+    assert all(result.returncode == 0 for result in results), [r.stderr for r in results]
+    lines = target.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 40
+    rows = [json.loads(line) for line in lines]        # every line parses
+    assert len({(row["writer"], row["index"]) for row in rows}) == 40
+
+
 def test_concurrent_runs_keep_every_record_and_the_whole_message(tmp_path, monkeypatch):
     """Two processes appending at once must not interleave or truncate a record."""
     script = (
