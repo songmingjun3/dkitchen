@@ -138,7 +138,24 @@ def test_install_uses_the_harness_launcher_and_names_the_profile(monkeypatch, ca
 
 
 def test_the_default_profile_is_the_desktop_one():
-    assert plugin.DEFAULT_PROFILE == "desktop"
+    """That is the profile the application boots, so the one a user means by 'my harness'."""
+    assert plugin.DEFAULT_PROFILE == plugin.DESKTOP_PROFILE == "desktop"
+
+
+def test_installing_into_desktop_warns_that_verification_is_on_the_plugins_page(
+        monkeypatch, capsys):
+    """The app locks its profile, so the composition cannot be dumped from the CLI."""
+    monkeypatch.setattr(plugin, "install_into", lambda profile: None)
+    assert plugin.install(profile="desktop") == 0
+    err = capsys.readouterr().err
+    assert "installed" in err
+    assert "Plugins page" in err
+
+
+def test_a_custom_profile_gets_no_desktop_warning(monkeypatch, capsys):
+    monkeypatch.setattr(plugin, "install_into", lambda profile: None)
+    assert plugin.install(profile="kitchen") == 0
+    assert "Plugins page" not in capsys.readouterr().err
 
 
 def test_install_into_forwards_a_link_spec_to_the_launcher(monkeypatch):

@@ -1214,7 +1214,8 @@ def main(argv=None) -> int:
     plugin_sub = plugin.add_subparsers(dest="plugin_action", required=True)
     plugin_install = plugin_sub.add_parser("install",
                                            help="Check this machine, then install the bundle")
-    plugin_install.add_argument("--profile", help="Harness profile to install into (default: desktop)")
+    plugin_install.add_argument("--profile",
+                                help="Harness profile to install into (default: desktop)")
     plugin_install.add_argument("--dry-run", action="store_true",
                                 help="Run the checks and print what would happen")
     plugin_sub.add_parser("check", help="Report what the plugin needs and what is missing")

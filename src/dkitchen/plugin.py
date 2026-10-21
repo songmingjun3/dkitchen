@@ -6,6 +6,13 @@ directory leaves the profile in a state the manager cannot reconcile. So this mo
 two things only: it proves the machine can serve the bundle, and it hands the bundle
 directory to the harness.
 
+One profile needs a word of warning. The desktop application holds a process-lifetime lock
+on its own profile, so `dsh --profile desktop --dump-config` refuses to run and the
+composition cannot be inspected from the command line after installing. The install itself
+works: the dependency, the `dsh.profile.bundles` entry, the `node_modules` link, and the
+lockfile entry all land, and the application's plugin manager keeps them when it installs
+something else. Only the post-install verification has to happen on the Plugins page.
+
 The checks matter because the bundle mounts an MCP server that runs `ding`. Installing it
 on a machine without `ding`, or without a reachable harness, produces a plugin whose every
 tool call fails — a worse outcome than refusing to install.
@@ -25,8 +32,13 @@ from dkitchen import paths
 #: `ding` can install the plugin without a checkout.
 BUNDLE_NAME = "dsh-dkitchen"
 
-#: The profile the desktop app boots by default, so the one a plugin should reach first.
-DEFAULT_PROFILE = "desktop"
+#: The profile the desktop application boots, which is the one a user means by "my
+#: harness". It can be installed into from the command line; only its composition cannot
+#: be dumped afterwards, because the application holds a process-lifetime lock on it.
+DESKTOP_PROFILE = "desktop"
+
+#: Where `ding plugin install` goes when no profile is named.
+DEFAULT_PROFILE = DESKTOP_PROFILE
 
 
 def bundle_dir() -> Path:
@@ -150,6 +162,13 @@ def install(*, dry_run: bool = False, profile: str | None = None) -> int:
     print(f"\nding: installed {bundle} into profile {target!r}", file=sys.stderr)
     print(f"Restart the harness (or reload the profile) to load mcp__dkitchen__* tools.",
           file=sys.stderr)
+    if target == DESKTOP_PROFILE:
+        # The desktop application holds a process-lifetime lock on its profile, so the
+        # composition cannot be dumped from here to prove the bundle loaded. Say where to
+        # look instead of implying a verification that did not happen.
+        print(f"The {DESKTOP_PROFILE!r} profile belongs to the desktop application, so its "
+              "composition cannot be dumped from the command line; confirm the dkitchen "
+              "row on its Plugins page.", file=sys.stderr)
     return 0
 
 

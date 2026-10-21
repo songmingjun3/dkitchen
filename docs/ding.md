@@ -422,9 +422,11 @@ The bundle sets `failOnStartupError: false` on purpose. A missing `ding` then le
 dkitchen tools unavailable instead of preventing the whole profile from starting.
 
 Restart the harness after installing, or reload the profile where HMR is enabled. The
-`desktop` profile belongs to the Electron application, so its composition cannot be dumped
-or inspected from the CLI; the harness's **Plugins** page is where to confirm the bundle
-and its `dkitchen` row.
+`desktop` profile belongs to the Electron application, which holds a lock on it, so its
+composition cannot be dumped with `dsh --profile desktop --dump-config` after installing.
+The install itself lands — the dependency, the bundle entry, the `node_modules` link, and
+the lockfile entry — and the application's own plugin manager keeps them. Confirm the
+`dkitchen` row on the harness's **Plugins** page.
 
 ## The harness profile: `harness init`
 
