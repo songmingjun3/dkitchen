@@ -66,11 +66,33 @@ def test_create_registers_the_session_and_applies_the_route(served, tmp_path):
         "agentroute-codex", "gpt-6-astra")
 
 
-def test_an_unavailable_route_is_recorded_not_fatal(served, tmp_path):
+def test_an_unavailable_route_is_recorded_not_fatal(served, tmp_path, monkeypatch):
+    """A route nobody publishes is reported after the settle window, not treated as fatal."""
+    monkeypatch.setattr(broker, "ROUTE_SETTLE_SECONDS", 0.3)
+    monkeypatch.setattr(broker, "ROUTE_SETTLE_INTERVAL", 0.1)
     reply = create(served, tmp_path, route={"provider": "nobody", "model": "nothing"})
     assert reply["ok"] is True
+    assert reply["route_selected"] is False
     journals = broker.journal().read_text(encoding="utf-8")
     assert "route_unavailable" in journals
+    assert "route_waiting" in journals, "it should have retried before giving up"
+
+
+def test_a_route_the_profile_publishes_late_is_still_selected(served, tmp_path, monkeypatch):
+    """A plugin that registers its routes after startup must not lose the station's route.
+
+    `session/new` fixes the option list, so the only way to see a late route is to drop the
+    session and open another one. The fake publishes `late/nothing-else` only on its second
+    `session/new`, which is what a runtime-registering plugin looks like from here.
+    """
+    monkeypatch.setattr(broker, "ROUTE_SETTLE_SECONDS", 5.0)
+    monkeypatch.setattr(broker, "ROUTE_SETTLE_INTERVAL", 0.05)
+    monkeypatch.setenv("FAKE_ACP_LATE_ROUTE", "late/nothing-else")
+    reply = create(served, tmp_path, route={"provider": "late", "model": "nothing-else"})
+    assert reply["ok"] is True
+    assert reply["route_selected"] is True
+    assert acp.current_value(reply["options"], acp.MODEL_OPTION) == acp.encode_route(
+        "late", "nothing-else")
 
 
 def test_send_starts_a_turn_and_status_follows_it(served, tmp_path):

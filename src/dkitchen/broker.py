@@ -67,6 +67,21 @@ def pid_file() -> Path:
 #: How long an `approvals = "ask"` prompt waits for `ding approve` before it is cancelled.
 PERMISSION_TIMEOUT_SECONDS = 3600.0
 
+#: How long to wait for a slow profile plugin to publish its model routes.
+#:
+#: Some bundles register provider routes at runtime instead of declaring them in the
+#: profile patch — `dsh-wtq-pool` does this through `inject: [llm, settings]`. A cold
+#: broker answers `session/new` before those plugins have finished, so the session's
+#: options hold only the routes the composition declared statically. Selecting a station's
+#: route then fails, and the session silently runs on whatever the profile defaults to,
+#: which for a profile without that provider's credentials fails on the first turn with an
+#: unrelated message. Measured on a cold start: the first listing showed no `xdpool` routes
+#: at all, the second showed 55.
+ROUTE_SETTLE_SECONDS = 20.0
+
+#: Seconds between attempts to see a late route while waiting out `ROUTE_SETTLE_SECONDS`.
+ROUTE_SETTLE_INTERVAL = 1.5
+
 
 def journal() -> Path:
     return paths.state("broker.jsonl")
@@ -312,8 +327,7 @@ class Broker:
     def create(self, *, cwd: str, name: str, station: str, issue: int | None, repo: str | None,
                route: dict, message: str | None) -> dict:
         connection = self._connection(station)
-        session_id, options = connection.new_session(Path(cwd))
-        options = self._apply_route(connection, session_id, options, route)
+        session_id, options, route_selected = self._open_routed(connection, cwd, route)
         record = registry.Record(id=session_id, name=name, station=station, cwd=cwd,
                                  created_ns=time.time_ns(), issue=issue, repo=repo,
                                  provider=route.get("provider"), model=route.get("model"),
@@ -326,26 +340,58 @@ class Broker:
         _append(journal(), {"event": "created", "session": session_id, "name": name,
                             "station": station, "cwd": cwd, "time_ns": time.time_ns()})
         return {"session": session_id, "name": name, "route": route,
-                "options": options, "delivery": delivered}
+                "options": options, "delivery": delivered,
+                "route_selected": route_selected}
 
-    def _apply_route(self, connection: acp.Connection, session_id: str,
-                     options: list[dict], route: dict) -> list[dict]:
-        """Select the station's model and reasoning effort, tolerating an unlisted route."""
+    def _open_routed(self, connection: acp.Connection, cwd: str,
+                     route: dict) -> tuple[str, list[dict], bool]:
+        """Open a session whose options already offer the station's route.
+
+        A profile plugin that registers provider routes at runtime publishes them only after
+        the harness has started, and `session/new` fixes the option list at that moment — a
+        later `session/set_config_option` cannot widen it. A cold broker therefore opens the
+        first session too early to see those routes, and the session would run on the
+        profile's default route instead of the station's. Dropping the session and opening
+        another one after a short wait is the only way to pick them up.
+        """
+        provider, model = route.get("provider"), route.get("model")
+        deadline = time.monotonic() + ROUTE_SETTLE_SECONDS
+        attempt = 0
+        while True:
+            attempt += 1
+            session_id, options = connection.new_session(Path(cwd))
+            if not (provider and model):
+                return session_id, options, True
+            available = {(row.get("provider"), row.get("model"))
+                         for row in acp.model_choices(options)}
+            if (provider, model) in available:
+                options = self._select_route(connection, session_id, options, route)
+                return session_id, options, True
+            if time.monotonic() >= deadline:
+                # Out of patience: keep the session, record why, and let the caller's route
+                # stand so the failure names the real problem rather than a default route.
+                _append(journal(), {"event": "route_unavailable", "session": session_id,
+                                    "provider": provider, "model": model, "attempts": attempt,
+                                    "available": sorted(f"{p}/{m}" for p, m in available if p),
+                                    "time_ns": time.time_ns()})
+                return session_id, options, False
+            connection.close(session_id)
+            _append(journal(), {"event": "route_waiting", "session": session_id,
+                                "provider": provider, "model": model, "attempt": attempt,
+                                "time_ns": time.time_ns()})
+            time.sleep(ROUTE_SETTLE_INTERVAL)
+
+    def _select_route(self, connection: acp.Connection, session_id: str,
+                      options: list[dict], route: dict) -> list[dict]:
+        """Select the station's model and reasoning effort on a session that offers them."""
         provider, model = route.get("provider"), route.get("model")
         if provider and model:
-            available = {(row.get("provider"), row.get("model")) for row in acp.model_choices(options)}
-            if (provider, model) in available:
-                try:
-                    options = connection.set_option(session_id, acp.MODEL_OPTION,
-                                                    acp.encode_route(provider, model))
-                except acp.AcpError as error:
-                    _append(journal(), {"event": "route_refused", "session": session_id,
-                                        "provider": provider, "model": model, "error": str(error),
-                                        "time_ns": time.time_ns()})
-            else:
-                _append(journal(), {"event": "route_unavailable", "session": session_id,
-                                    "provider": provider, "model": model,
-                                    "available": sorted(f"{p}/{m}" for p, m in available if p),
+            try:
+                options = connection.set_option(session_id, acp.MODEL_OPTION,
+                                                acp.encode_route(provider, model))
+            except acp.AcpError as error:
+                _append(journal(), {"event": "route_refused", "session": session_id,
+                                    "provider": provider, "model": model, "error": str(error),
                                     "time_ns": time.time_ns()})
         effort = route.get("effort")
         if effort:
@@ -358,6 +404,20 @@ class Broker:
                                         "effort": effort, "error": str(error),
                                         "time_ns": time.time_ns()})
         return options
+
+    def _apply_route(self, connection: acp.Connection, session_id: str,
+                     options: list[dict], route: dict) -> list[dict]:
+        """Select the station's model and reasoning effort, tolerating an unlisted route."""
+        provider, model = route.get("provider"), route.get("model")
+        if provider and model:
+            available = {(row.get("provider"), row.get("model")) for row in acp.model_choices(options)}
+            if (provider, model) not in available:
+                _append(journal(), {"event": "route_unavailable", "session": session_id,
+                                    "provider": provider, "model": model,
+                                    "available": sorted(f"{p}/{m}" for p, m in available if p),
+                                    "time_ns": time.time_ns()})
+                return options
+        return self._select_route(connection, session_id, options, route)
 
     def _adopt(self, session_id: str, cwd: str, route: dict) -> Loaded:
         """Register a session this connection already holds, and start its worker."""

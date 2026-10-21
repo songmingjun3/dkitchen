@@ -128,6 +128,26 @@ def test_harness_init_copies_the_donor_bundles_and_providers(tmp_path, monkeypat
     assert "llm-pi-ai" in patch and "lab" in patch
 
 
+def test_harness_init_leaves_out_the_plugin_that_would_mount_the_mcp_server(
+        tmp_path, monkeypatch, capsys):
+    """The kitchen profile is the harness dkitchen drives, so it must not mount dkitchen.
+
+    Composing `dsh-dkitchen` there would have that harness spawn `ding mcp-serve`, whose
+    tools call `ding`, which reaches the broker owning the very harness the call runs in.
+    """
+    home = paths.dsh_home()
+    write_profile(home, "desktop", ["@deepseek-ai/dsh-base", "dsh-dkitchen"], patch="")
+    monkeypatch.setattr(ding.paths, "dsh_executable", lambda: sys.executable)
+    monkeypatch.setattr(ding.subprocess, "run",
+                        lambda *a, **k: type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})())
+    root = tmp_path / "repo"
+    root.mkdir()
+    assert ding.harness_init(config.load(root), profile="kitchen", force=False) == 0
+    package = json.loads((home / "profiles" / "kitchen" / "package.json").read_text(encoding="utf-8"))
+    assert "dsh-dkitchen" not in package["dsh"]["profile"]["bundles"]
+    assert "dsh-dkitchen" not in (package.get("dependencies") or {})
+
+
 def test_harness_init_refuses_to_overwrite_without_force(tmp_path, monkeypatch, capsys):
     home = paths.dsh_home()
     write_profile(home, "kitchen", ["@deepseek-ai/dsh-base"])

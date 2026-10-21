@@ -786,11 +786,14 @@ def harness_init(config_: config.Config, *, profile: str | None, force: bool) ->
     package["name"] = f"dsh-profile-{name}"
     profile_block = package.setdefault("dsh", {}).setdefault("profile", {})
     bundles = [bundle for bundle in profile_block.get("bundles", [])
-               if bundle not in _WEB_APPLICATIONS]
+               if bundle not in _WEB_APPLICATIONS and bundle not in _PLUGIN_BUNDLES]
     bundles = ["@deepseek-ai/dsh-base", *[bundle for bundle in bundles
                                           if bundle != "@deepseek-ai/dsh-base"],
                "@deepseek-ai/dsh-acp-app"]
     profile_block["bundles"] = bundles
+    dependencies = package.get("dependencies") or {}
+    for excluded in _PLUGIN_BUNDLES:
+        dependencies.pop(excluded, None)
     manifest.write_text(json.dumps(package, indent=2) + "\n", encoding="utf-8")
     (target / "cordis.yml").write_text(
         "# dsh profile root — the tree is composed from the bundles in package.json.\n[]\n",
@@ -822,6 +825,15 @@ DONOR_PROFILES = ("desktop", "web", "tui")
 #: Bundles that mount a browser application; the kitchen profile runs ACP instead.
 _WEB_APPLICATIONS = {"@deepseek-ai/dsh-web-app", "@deepseek-ai/dsh-acp-app",
                      "@deepseek-ai/dsh-headless", "@deepseek-ai/dsh-sdk-app"} 
+
+#: The bundle that mounts dkitchen's own MCP server, which must not be inherited.
+#:
+#: A donor profile that has the plugin installed composes it, and this profile is the
+#: harness dkitchen drives over ACP: mounting the MCP server here would have that harness
+#: spawn `ding mcp-serve`, whose tools call `ding`, which talks to the broker that owns
+#: the very harness the tool call is running in. The stations use the CLI directly, so
+#: the plugin adds nothing here but a cycle.
+_PLUGIN_BUNDLES = {"dsh-dkitchen"}
 
 
 def _donor_profile() -> dict:

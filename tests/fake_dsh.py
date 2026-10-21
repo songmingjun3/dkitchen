@@ -41,8 +41,17 @@ def selector(provider: str, model: str) -> str:
     return json.dumps([provider, model], separators=(",", ":"))
 
 
+def _late_route() -> dict | None:
+    """The route named by `FAKE_ACP_LATE_ROUTE` (`provider/model`), if the run sets one."""
+    raw = os.environ.get("FAKE_ACP_LATE_ROUTE") or ""
+    provider, _, model = raw.partition("/")
+    if not provider or not model:
+        return None
+    return {"provider": provider, "model": model, "name": model}
+
+
 class Session:
-    def __init__(self, session_id: str, cwd: str) -> None:
+    def __init__(self, session_id: str, cwd: str, *, late_route: dict | None = None) -> None:
         self.id = session_id
         self.cwd = cwd
         self.provider = "deepseek-official"
@@ -50,6 +59,8 @@ class Session:
         self.effort = ""
         self.in_flight: str | None = None
         self.messages: list[str] = []
+        #: A route this session offers in addition to `MODELS`, modelling a late plugin.
+        self.late_route = late_route
 
     def options(self) -> list[dict]:
         return [
@@ -57,12 +68,23 @@ class Session:
              "currentValue": selector(self.provider, self.model),
              "options": [{"group": "providers", "name": "Providers",
                           "options": [{"value": selector(row["provider"], row["model"]),
-                                       "name": row["name"]} for row in MODELS]}]},
+                                       "name": row["name"]} for row in self.available_models()]}]},
             {"id": "reasoning_effort", "name": "Reasoning effort", "type": "select",
              "currentValue": self.effort,
              "options": [{"value": "", "name": "Provider default"}]
                         + [{"value": effort, "name": effort.title()} for effort in EFFORTS]},
         ]
+
+    def available_models(self) -> list[dict]:
+        """The routes this session offers, including any published late.
+
+        A real profile plugin that registers provider routes at runtime publishes them only
+        after the harness has started; the fake models that with `FAKE_ACP_LATE_ROUTE`,
+        which appears only on the server's second `session/new`.
+        """
+        if self.late_route is None:
+            return MODELS
+        return [*MODELS, self.late_route]
 
 
 class FakeServer:
@@ -75,6 +97,10 @@ class FakeServer:
         self.turn_delay = float(os.environ.get("FAKE_ACP_TURN_DELAY") or 0.05)
         #: Sessions the scripted run should behave as if another process owned.
         self.busy = {value for value in (os.environ.get("FAKE_ACP_BUSY") or "").split(",") if value}
+        #: Count of `session/new` calls, so a late route can appear only after the first.
+        self.session_new_count = 0
+        #: A route that only later sessions offer, modelling a plugin registering at runtime.
+        self.late_route = _late_route()
 
     # -- transport -------------------------------------------------------------------
 
@@ -112,7 +138,11 @@ class FakeServer:
             if not isinstance(cwd, str) or not os.path.isabs(cwd):
                 self.fail(request_id, f"cwd must be absolute: {cwd}")
                 return
-            session = Session(str(uuid.uuid4()), cwd)
+            self.session_new_count += 1
+            late = None
+            if self.session_new_count > 1 and self.late_route:
+                late = self.late_route
+            session = Session(str(uuid.uuid4()), cwd, late_route=late)
             self.sessions[session.id] = session
             self.reply(request_id, {"sessionId": session.id, "configOptions": session.options()})
             return
@@ -134,7 +164,8 @@ class FakeServer:
             config_id = params.get("configId")
             value = params.get("value")
             if config_id == "model":
-                known = {selector(row["provider"], row["model"]) for row in MODELS}
+                known = {selector(row["provider"], row["model"])
+                         for row in session.available_models()}
                 if value not in known:
                     self.fail(request_id, f"unknown model option: {value}")
                     return
