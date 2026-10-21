@@ -4,9 +4,9 @@ Every piece of work is a ticket: a GitHub issue in this repo, handled with `gh`.
 
 ## Executor comments
 
-When you take over a ticket, post a comment with the line `Codex owner: <CODEX_THREAD_ID>`. `ding` delivers messages for the ticket to the latest owner line, so a new executor taking over posts its own.
+When you take over a ticket, post a comment with the line `DSH owner: <session id>`. `ding` delivers messages for the ticket to the latest owner line, so a new executor taking over posts its own.
 
-Every comment you post carries `Codex session: <CODEX_THREAD_ID>`, with your current session's ID.
+Every comment you post carries `DSH session: <session id>`. In a station's shell, `$DSH_SESSION_ID` already holds it (PowerShell: `$env:DSH_SESSION_ID`).
 
 Open every comment with the status block, and put the details after it inside `<details>`:
 

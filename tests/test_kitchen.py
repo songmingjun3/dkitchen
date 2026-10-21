@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-import fcntl
 import hashlib
 import json
 from pathlib import Path
@@ -7,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from dkitchen import config, ding, orchestrate, refs, watch
+from dkitchen import config, ding, locks, orchestrate, refs, watch
 
 
 CHINESE = """
@@ -97,13 +96,15 @@ def test_board_status_falls_back_to_the_config_fields(tmp_path, monkeypatch, cap
     (tmp_path / config.FILE).write_text(CHINESE, encoding="utf-8")
     monkeypatch.delenv("DING_STATUS_FIELDS", raising=False)
     monkeypatch.setattr(ding, "unwrapped_tasks", lambda **kwargs: [])
+    monkeypatch.setattr(ding, "ensure_broker", lambda *args, **kwargs: False)
     seen = {}
-    monkeypatch.setattr(ding, "show_board", lambda path, all_threads, status: seen.setdefault("fields", status))
-    assert ding.main(["board", "--status"]) == 0
+    monkeypatch.setattr(ding, "show_board",
+                        lambda settings, all_sessions, status_fields_: seen.setdefault("fields", status_fields_))
+    assert ding.main(["board", "--status", "--no-start"]) == 0
     assert seen["fields"] == ("状态", "在等", "关键数字", "下一步")
     monkeypatch.setenv("DING_STATUS_FIELDS", "A,B")
     seen.clear()
-    assert ding.main(["board", "--status"]) == 0
+    assert ding.main(["board", "--status", "--no-start"]) == 0
     assert seen["fields"] == ("A", "B")
 
 
@@ -272,8 +273,7 @@ def test_board_running_reads_only_the_session_table():
 def test_second_watch_on_the_same_state_exits(tmp_path):
     state = tmp_path / "watch.json"
     args = SimpleNamespace(state=state, checkout=None, since=None, skip_issue=[])
-    with (tmp_path / "watch.lock").open("w") as held:
-        fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    with locks.exclusive(tmp_path / "watch.lock"):
         assert watch.watch(args, settings(tmp_path, 'repo = "o/r"')) == 3
     assert not state.exists()
 

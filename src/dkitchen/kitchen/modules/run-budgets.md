@@ -26,3 +26,5 @@ GPU hours: <GPUs × hours>
 ## Checking the numbers
 
 The verifier checks a ticket's premises before dispatch and spot-checks requests before approval, as in [roles.md](roles.md#verification). Spending reported on a ticket is recomputed from the saved receipts with the repo's ledger script, never by hand. <!-- fill: the ledger script and how to call it, or drop this paragraph if the repo keeps no receipts. -->
+
+A kitchen without a verifier station gives these checks to the orchestrator, which then also runs them before dispatch and before approving a request.

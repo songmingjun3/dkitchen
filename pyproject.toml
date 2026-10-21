@@ -4,21 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dkitchen"
-version = "0.4.0"
-description = "A multi-agent workflow for research repos, with the ding CLI for messaging and waking agent sessions"
+version = "0.5.0"
+description = "A multi-agent workflow for research repos, with the ding CLI for driving DeepSeek Harness sessions"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{name = "917Dhj"}]
-keywords = ["agents", "multi-agent", "codex", "claude-code", "workflow", "research", "tmux", "cli"]
-dependencies = ["websocket-client>=1.9,<2", "tomli>=1.1; python_version < '3.11'"]
+keywords = ["agents", "multi-agent", "deepseek-harness", "workflow", "research", "windows", "cli"]
+dependencies = ["zstandard>=0.22,<1", "tomli>=1.1; python_version < '3.11'"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "Operating System :: POSIX",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.10",
@@ -43,5 +43,11 @@ Issues = "https://github.com/917Dhj/dkitchen/issues"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+dkitchen = ["skills/**/*.md", "skills/**/*.py", "kitchen/**/*.md"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# A Windows user name outside the ANSI code page makes the default temp root unreadable to
+# pytest's own directory scan, so the suite keeps its scratch files inside the checkout.
+addopts = "--basetemp=.pytest-tmp"

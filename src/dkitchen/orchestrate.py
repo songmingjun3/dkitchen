@@ -55,7 +55,7 @@ def executor_status(config: Config, repo: str, issue: int) -> dict | None:
     if result.returncode:
         raise RuntimeError(result.stderr.strip())
     comments = [comment for page in json.loads(result.stdout) for comment in page]
-    executor = [comment for comment in comments if watch.role(comment["body"], config) == config.stations.executor]
+    executor = [entry for entry in comments if watch.role(entry["body"], config) == config.stations.executor]
     if not executor:
         return None
     latest = executor[-1]
@@ -78,7 +78,8 @@ def merge(args, config: Config) -> int:
     repo = config.repository()
 
     def view() -> dict:
-        result = call(config, "gh", "pr", "view", str(args.pr), "--repo", repo, "--json", "isDraft,state,headRefOid,mergeCommit,body")
+        result = call(config, "gh", "pr", "view", str(args.pr), "--repo", repo, "--json",
+                      "isDraft,state,headRefOid,mergeCommit,body")
         if result.returncode:
             raise RuntimeError(result.stderr.strip())
         return json.loads(result.stdout)
@@ -134,7 +135,7 @@ def relay(args, config: Config) -> int:
     if args.socket:
         send += ["--socket", args.socket]
     if ding.main(send):
-        return fail("ding send did not confirm delivery; check ~/.local/state/ding/sent.jsonl before sending again. "
+        return fail("ding send did not confirm delivery; check the send log before sending again. "
                     "No comment was left.")
     if args.no_comment:
         return 0
@@ -145,4 +146,5 @@ def log(args, config: Config) -> int:
     issue = args.issue or config.log.issue
     if issue is None:
         return fail("no orchestrator log ticket; set [log] issue in .dkitchen.toml or pass --issue")
-    return comment(config, config.repository(), issue, log_body(args.item, args.pending, datetime.now(timezone.utc), config))
+    return comment(config, config.repository(), issue,
+                   log_body(args.item, args.pending, datetime.now(timezone.utc), config))

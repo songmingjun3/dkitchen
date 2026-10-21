@@ -6,7 +6,9 @@ import sys
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills/setup-dkitchen/scripts"
+SKILL = Path(__file__).resolve().parents[1] / "src/dkitchen/skills/setup-dkitchen"
+SCRIPTS = SKILL / "scripts"
+KITCHEN = Path(__file__).resolve().parents[1] / "src/dkitchen/kitchen"
 
 
 def load(name):
@@ -108,7 +110,7 @@ def test_paragraphs_preserve_leading_space_and_match_one_source():
 
 
 def test_render_keeps_chosen_modules_and_leaves_no_markers(tmp_path):
-    spec = spec_from_file_location("render", SCRIPTS.parent / "render.py")
+    spec = spec_from_file_location("render", SKILL / "render.py")
     module = module_from_spec(spec)
     spec.loader.exec_module(module)
     text = ("Lead.\n\n<!-- module:artifacts -->\n- frozen\n<!-- /module:artifacts -->\n- always\n"
@@ -121,16 +123,40 @@ def test_render_keeps_chosen_modules_and_leaves_no_markers(tmp_path):
         module.render("<!-- module:artifacts -->x", {"artifacts"})
 
 
+def test_render_finds_the_templates_without_a_flag(tmp_path):
+    """The templates travel inside the package, so a copied skill still locates them."""
+    spec = spec_from_file_location("render", SKILL / "render.py")
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module.find_kitchen(None) == KITCHEN
+    assert module.find_kitchen(KITCHEN) == KITCHEN
+    empty = tmp_path / "not-a-kitchen"
+    empty.mkdir()
+    with pytest.raises(ValueError, match="not a kitchen folder"):
+        module.find_kitchen(empty)
+
+
+def test_the_skill_md_links_resolve_from_the_skill_directory():
+    """SKILL.md points at the templates by relative path, so moving the skill moves them."""
+    import re
+    text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+    links = re.findall(r"\]\((\.\./[^)#]+)", text)
+    assert links, "SKILL.md should link to the kitchen templates"
+    for link in links:
+        assert (SKILL / link).exists(), f"SKILL.md links to a missing file: {link}"
+
+
 @pytest.mark.parametrize("modules", ["", "run-budgets,model-text,artifacts,unattended", "unattended"])
 def test_rendered_kitchen_has_no_markers_and_no_broken_links(tmp_path, modules):
     import re
     out = tmp_path / "docs/agents"
-    result = subprocess.run([sys.executable, str(SCRIPTS.parent / "render.py"), "--modules", modules, "--out", str(out)],
+    result = subprocess.run([sys.executable, str(SKILL / "render.py"), "--modules", modules,
+                             "--out", str(out), "--kitchen", str(KITCHEN)],
                             capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
-    assert "## AGENTS.md" in result.stdout and "## CLAUDE.md" in result.stdout and "module:" not in result.stdout
+    assert "## AGENTS.md" in result.stdout and "module:" not in result.stdout
     for path in out.glob("*.md"):
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         assert "module:" not in text, path
         for link in re.findall(r"\]\(([\w.-]+\.md)(?:#[\w-]+)?\)", text):
             assert (out / link).exists(), (path, link)

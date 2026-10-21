@@ -5,19 +5,19 @@ Wakes on:
 - comments from the user (no station signature);
 - status labels being added, and newly opened PRs;
 - stale tickets: no status label, last comment an executor "in progress" older than --stale-hours,
-  no running `ding run` for the ticket, and no live tmux job whose session name holds issue<N>.
+  no running `ding run` for the ticket, and no live tmux job whose session name holds issue<N>
+  (the tmux half is POSIX-only, since Windows has no tmux).
 On tickets labelled awaiting-user, executor comments wake only for blocked, done, and waiting on design,
 or when their "waiting on" names the orchestrator, designer, or verifier.
 Verifier comments never wake on their own, since the verifier also messages the orchestrator;
 they are listed in the next batch for reference.
 The state file keeps the time already reported, so rerunning the same command loses nothing.
 One watch runs per state file; a second one exits at once.
-Station names, status words, and labels come from .dkitchen.toml.
+Station names, status words, labels, and signature lines come from .dkitchen.toml.
 """
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-import fcntl
 import json
 import os
 from pathlib import Path
@@ -26,13 +26,18 @@ import subprocess
 import sys
 import time
 
+from dkitchen import locks, paths
 from dkitchen.config import Config
 
-SHELLS = {"bash", "sh", "zsh", "dash", "fish"}
+SHELLS = {"bash", "sh", "zsh", "dash", "fish", "pwsh", "powershell", "cmd"}
+WINDOWS = paths.WINDOWS
 
 
 def gh(path: str) -> list[dict]:
-    result = subprocess.run(["gh", "api", path], capture_output=True, text=True, timeout=60)
+    try:
+        result = subprocess.run(["gh", "api", path], capture_output=True, text=True, timeout=60)
+    except FileNotFoundError as error:
+        raise RuntimeError("the gh CLI is not installed") from error
     if result.returncode:
         raise RuntimeError(result.stderr.strip() or f"gh api {path} failed")
     return json.loads(result.stdout)
@@ -62,8 +67,12 @@ def issue_number(url: str) -> int:
 
 
 def role(body: str, config: Config) -> str:
-    """The station named at the start of the first line; otherwise the executor by a line starting with its
-    session signature; else the user. A session signature quoted inside a line signs nothing."""
+    """The station named at the start of the first line; otherwise the executor by a line starting with
+    its session signature; else the user. A session signature quoted inside a line signs nothing.
+
+    Both the current and the pre-migration signature spellings count, so a ticket written
+    before the harness move still reads correctly.
+    """
     stations = config.stations
     first = next((line for line in body.splitlines() if line.strip()), "")
     first = re.sub(r"^[\s#*>]+", "", first)
@@ -71,7 +80,10 @@ def role(body: str, config: Config) -> str:
                    if first.startswith(name)), None)
     if signed:
         return signed
-    return stations.executor if re.search(r"(?m)^[ \t]*Codex session:", body) else stations.user
+    for line in config.sessions.session_patterns():
+        if re.search(rf"(?m)^[ \t]*{re.escape(line)}:", body):
+            return stations.executor
+    return stations.user
 
 
 def fields(body: str, config: Config) -> dict[str, str]:
@@ -131,21 +143,26 @@ def collect(config: Config, repo: str, since: str, labels_since: str, seen: set[
 
 
 def board_running(output: str) -> set[int]:
-    """Tickets whose session has a running `ding run`, from `ding board`'s ISSUE and RUN columns."""
+    """Tickets whose session has a running `ding run` or launched job, from `ding board`.
+
+    The session table ends at the first blank line; the JOB and UNWRAPPED tables that follow
+    describe processes, not sessions, so they cannot make a ticket look busy.
+    """
     running = set()
     for line in output.splitlines():
         if not line.strip():
-            break  # the unwrapped-process table follows a blank line
+            break
         cells = line.split("\t")
-        if len(cells) == 6 and cells[5] == "running":
+        # RUN is the sixth column; a seventh SESSION column is optional in this reader so a
+        # board from an older release still parses.
+        if len(cells) >= 6 and cells[5] == "running":
             running.update(int(number) for number in re.findall(r"#(\d+)", cells[3]))
     return running
 
 
 def running_issues(checkout: Path) -> set[int]:
-    # The ISSUE column is filled only for sessions of the repository in the current directory.
-    result = subprocess.run([sys.executable, "-m", "dkitchen.ding", "board"], capture_output=True, text=True,
-                            timeout=120, cwd=checkout)
+    result = subprocess.run([sys.executable, "-m", "dkitchen.ding", "board", "--no-start"],
+                            capture_output=True, text=True, timeout=120, cwd=checkout)
     if result.returncode:
         raise RuntimeError(f"ding board failed: {result.stderr.strip()[:200]}")
     return board_running(result.stdout)
@@ -163,7 +180,9 @@ def tmux_issues(panes: str) -> set[int]:
 
 
 def tmux_panes() -> str:
-    """`tmux list-panes` for all sessions; empty when no tmux server is running."""
+    """`tmux list-panes` for all sessions; empty when no tmux server is running or on Windows."""
+    if WINDOWS:
+        return ""
     try:
         result = subprocess.run(["tmux", "list-panes", "-a", "-F", "#{session_name}|#{pane_dead}|#{pane_current_command}"],
                                 capture_output=True, text=True, timeout=30)
@@ -195,8 +214,7 @@ def stale(config: Config, repo: str, checkout: Path, hours: float, reported: set
 
 
 def default_state(repo: str) -> Path:
-    state = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state")
-    return state / "ding/watch" / f"{repo.replace('/', '-')}.json"
+    return paths.state("watch", f"{repo.replace('/', '-')}.json")
 
 
 def watch(args, config: Config) -> int:
@@ -204,12 +222,15 @@ def watch(args, config: Config) -> int:
     path = args.state or default_state(repo)
     checkout = args.checkout or config.root
     path.parent.mkdir(parents=True, exist_ok=True)
-    lock = path.with_suffix(".lock").open("w")
     try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
+        with locks.exclusive(path.with_suffix(".lock"), blocking=False):
+            return _watch(args, config, repo, path, checkout)
+    except locks.LockBusy:
         print(f"ding: another watch is using {path}; stop it before starting a new one", file=sys.stderr)
         return 3
+
+
+def _watch(args, config: Config, repo: str, path: Path, checkout: Path) -> int:
     started = now()
     state = (json.loads(path.read_text()) if path.exists()
              else {"since": args.since or started, "seen": [], "stale": []})

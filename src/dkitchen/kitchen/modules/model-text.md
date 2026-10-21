@@ -1,6 +1,6 @@
 # Model-visible text
 
-Model-visible text is everything a model under study reads: prompts, tool definitions, templates, and schemas. A change to it changes the experiment, so it has one owner, the designer, and it is fixed on the ticket before anything runs.
+Model-visible text is everything a model under study reads: prompts, tool definitions, templates, and schemas. A change to it changes the experiment, so it has one owner, the designer, and it is fixed on the ticket before anything runs. A kitchen without the designer station gives this ownership to the orchestrator, and the rules below then name the orchestrator instead.
 
 - **The designer writes it** on the ticket, verbatim. When a ticket says to explore first and wait for the designer before continuing, the designer may adjust the text and parameters within the approved budget after the exploration, posting the change on the ticket and telling the user afterwards. Exit thresholds and decision rules stay as they are.
 - **Executors copy it verbatim** from the ticket. When the work needs new or changed text, they stop with `Status: waiting on design`.

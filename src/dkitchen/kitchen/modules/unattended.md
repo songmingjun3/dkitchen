@@ -16,7 +16,7 @@ The watch only reads GitHub, `ding board`, and tmux; it calls no model. It exits
 - a comment from the user;
 - a `status:*` label being added;
 - a new PR;
-- an executor gone quiet: `in progress` for over 6 hours without a comment, with no running `ding run` and no live tmux job whose session name contains `issue<ticket number>`.
+- an executor gone quiet: `in progress` for over 6 hours without a comment, with no running `ding run` and no live tmux job whose session name contains `issue<ticket number>` (the tmux half applies on Linux; on Windows the watch reads the jobs `ding` itself started).
 
 Verifier comments never wake it on their own, since the verifier also messages the orchestrator; they are listed in the next batch for reference. It skips the orchestrator log ticket set in `.dkitchen.toml`. One watch runs at a time; a second exits at once. `ding watch --help` lists the timing options.
 

@@ -38,24 +38,56 @@ def blocks(text: str) -> dict[str, str]:
             re.findall(r"^## (\S+)\n\n```markdown\n(.*?)^```", text, flags=re.S | re.M)}
 
 
+def find_kitchen(explicit: Path | None) -> Path:
+    """The `kitchen/` template folder that ships inside the installed `dkitchen` package.
+
+    The templates travel with the package, so an installed skill renders them without a
+    checkout. The search order is: the explicit flag, the package this skill belongs to
+    (which covers both a checkout and a wheel), the repository it was installed into, and
+    finally a `kitchen/` beside the current directory.
+    """
+    if explicit is not None:
+        if not (explicit / "README.md").is_file():
+            raise ValueError(f"{explicit} is not a kitchen folder: no README.md")
+        return explicit
+    here = Path(__file__).resolve()
+    candidates = [
+        here.parents[2] / "kitchen",                      # dkitchen/skills/setup-dkitchen/ -> dkitchen/kitchen
+        Path.cwd() / "kitchen",
+    ]
+    try:
+        import dkitchen
+
+        candidates.append(Path(dkitchen.__file__).resolve().parent / "kitchen")
+    except ImportError:  # pragma: no cover - the skill may be used without the package
+        pass
+    for candidate in candidates:
+        if candidate is not None and (candidate / "README.md").is_file():
+            return candidate
+    raise ValueError("cannot find the kitchen/ templates; pass --kitchen DIR, or reinstall "
+                     "dkitchen so the package carries them")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--modules", default="", help=f"comma-separated, from: {', '.join(MODULES)}")
     parser.add_argument("--out", type=Path, required=True, help="folder for the rendered rules, such as docs/agents")
-    parser.add_argument("--kitchen", type=Path, default=Path(__file__).resolve().parents[2] / "kitchen",
-                        help="the dkitchen kitchen/ folder (default: the one in this repository)")
+    parser.add_argument("--kitchen", type=Path,
+                        help="the dkitchen kitchen/ folder (default: the one inside the installed "
+                             "package, else beside the current directory)")
     args = parser.parse_args()
     modules = {name.strip() for name in args.modules.split(",") if name.strip()}
     if modules - set(MODULES):
         parser.error(f"unknown modules: {', '.join(sorted(modules - set(MODULES)))}")
     try:
-        sources = [args.kitchen / "core" / name for name in CORE]
-        sources += [args.kitchen / "modules" / INSTALLED[name] for name in MODULES if name in modules]
+        kitchen = find_kitchen(args.kitchen)
+        sources = [kitchen / "core" / name for name in CORE]
+        sources += [kitchen / "modules" / INSTALLED[name] for name in MODULES if name in modules]
         args.out.mkdir(parents=True, exist_ok=True)
         for source in sources:
             (args.out / source.name).write_text(render(source.read_text(encoding="utf-8"), modules), encoding="utf-8")
             print(f"wrote {args.out / source.name}", file=sys.stderr)
-        for heading, body in blocks(render((args.kitchen / "core" / "agents-block.md").read_text(encoding="utf-8"), modules)).items():
+        for heading, body in blocks(render((kitchen / "core" / "agents-block.md").read_text(encoding="utf-8"), modules)).items():
             print(f"## {heading}\n\n{body}\n")
     except (OSError, ValueError) as error:
         print(f"render.py: {error}", file=sys.stderr)

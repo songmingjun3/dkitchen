@@ -1,21 +1,25 @@
 # Stations
 
+Every station is a DeepSeek Harness session. `ding new --station <name>` opens one, and `ding board` shows them all; the same conversations appear in the harness GUI.
+
 ## Current sessions
 
 When a session is replaced, edit only this table. Everywhere else, write the station, never a session name.
 
-| Station | Session name |
+| Station | Session |
 | --- | --- |
 | Orchestrator | (not yet opened) |
 | Designer | (not yet opened) |
 | Verifier | (not yet opened) |
 
+The stations this kitchen runs are listed in `.dkitchen.toml` under `[kitchen] stations`. A station not listed there is not opened: its duties below fall to the orchestrator, and its model route is unused. Change the list with `ding config enable <station>` or `ding config disable <station>`, or run the setup skill again.
+
 ## Duties
 
-- **Orchestrator** (Claude Code, the strongest model available): reports progress, starting from `ding board`. Tells the user facts and schedules.
-- **Designer** (Claude Code, the strongest model available): writes tickets.<!-- module:model-text --> Owns model-visible text ([model-text.md](model-text.md)).<!-- /module:model-text -->
-- **Verifier** (Claude Code, a cheaper model): checks facts and makes no decisions. Reads code and data and runs scripts that call no model. Runs no models and edits no repo files.
-- **Executor** (Codex): one session per ticket, in its own worktree. Carries out the ticket.<!-- module:model-text --> Stops and hands back to the designer when it needs new or changed model-visible text; copies text given in the ticket verbatim.<!-- /module:model-text -->
+- **Orchestrator** (the strongest model available): reports progress, starting from `ding board`. Tells the user facts and schedules.<!-- module:model-text --> With no designer, it also writes model-visible text ([model-text.md](model-text.md)).<!-- /module:model-text -->
+- **Designer** (the strongest model available): writes tickets.<!-- module:model-text --> Owns model-visible text ([model-text.md](model-text.md)).<!-- /module:model-text -->
+- **Verifier** (a cheaper model): checks facts and makes no decisions. Reads code and data and runs scripts that call no model. Runs no models and edits no repo files.<!-- module:model-text --> With no designer, it also owns model-visible text.<!-- /module:model-text -->
+- **Executor**: one session per ticket, in its own worktree. Carries out the ticket.<!-- module:model-text --> Stops and hands back to the designer when it needs new or changed model-visible text; copies text given in the ticket verbatim.<!-- /module:model-text -->
 
 ## Who owns what
 
@@ -75,9 +79,11 @@ Other sessions are messaged only when the user explicitly asks. Otherwise, hand 
 
 All stations post from one GitHub account, so comments are told apart by how they are written<!-- module:unattended -->, which is also how the issue watcher tells who wrote what<!-- /module:unattended -->:
 
-- Executor comments carry a `Codex session:` line.
+- Executor comments carry a `DSH session:` line naming the session's id (`$DSH_SESSION_ID` in its shell).
 - The designer, verifier, and orchestrator start the first line with their station name: `Designer:`, `## Verifier:`, `Orchestrator:`.
 - Everything else is the user's. The user's comments never start with a station name.
+
+A ticket written before the harness move may say `Codex owner:` and `Codex session:`; those still resolve, so no old ticket needs rewriting.
 
 ## Reviewing PRs
 
