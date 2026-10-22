@@ -3,8 +3,10 @@
 
 Usage: render.py [--out DIR] [--variants wide-en,wide-zh,tall-en,tall-zh] [--fps 12] [--ffmpeg PATH]
 
-Needs Playwright with Chromium (`pip install playwright && playwright install chromium`) and an ffmpeg
-with libx264. For each variant it writes into --out:
+This is documentation tooling for the README's demo clip, not part of dkitchen itself: it runs
+only by hand, when kitchen.html has changed. It needs Playwright with Chromium
+(`pip install playwright && playwright install chromium`) and an ffmpeg with libx264. For each
+variant it writes into --out:
 
   wide-en  kitchen.gif and kitchen.mp4            960x540 GIF for the README, 1920x1080 MP4
   wide-zh  kitchen-zh.gif and kitchen-zh.mp4      the same in Chinese, for README.zh-CN.md

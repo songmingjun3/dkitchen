@@ -273,46 +273,46 @@ const noise = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; retur
 
 // ---- story --------------------------------------------------------------
 const CAPTIONS_EN = [
-  [0.0, "$ ding board      4 cooking · GPU2-3 free · 5 tickets on the rail"],
+  [0.0, "$ dkitchen_board   4 cooking · GPU2-3 free · 5 on the rail"],
   [3.0, 'you: "try method B on dataset X?"'],
   [4.4, "designer comes over: this one changes what the model sees"],
   [5.4, 'designer: "PROPOSAL: new prompts for B. your call"'],
   [7.6, 'you: "yes. keep the old prompts as the baseline"'],
   [10.2, 'designer$ gh issue create --title "Eval method B on X"   → #17'],
-  [12.1, "verifier$ ding check-refs check.md   → 0 problems"],
+  [12.1, "verifier$ dkitchen_check_refs draft=check.md  → 0 problems"],
   [13.5, 'verifier → orchestrator: "#17 pass"'],
-  [14.6, "orchestrator$ ding board   → GPU2, GPU3 free"],
-  [15.6, 'orchestrator$ ding relay 17 --message "start #17 on GPU2-3"'],
-  [17.2, "executor #17$ ding launch eval17 -- python eval.py --gpus 2,3"],
-  [19.1, "orchestrator$ ding watch   → #14 Status: waiting on design"],
+  [14.6, "orchestrator$ dkitchen_board   → GPU2, GPU3 free"],
+  [15.6, 'orchestrator$ dkitchen_relay ticket=17 → "start #17 on GPU2-3"'],
+  [17.2, "executor #17$ dkitchen_launch eval17 → python eval.py --gpus 2,3"],
+  [19.1, "orchestrator$ dkitchen_watch   → #14 Status: waiting on design"],
   [21.4, 'designer → orchestrator: "#14 answered, see the ticket"'],
   [23.6, "executor #13$ pytest   → 48 passed · PR #31 opened"],
   [25.2, "orchestrator$ scripts/review_pr.py 31   → ready to merge"],
-  [26.4, "orchestrator$ ding merge 31 3f9c2a1   → merged"],
+  [26.4, "orchestrator$ dkitchen_merge pr=31 sha=3f9c2a1  → merged"],
   [28.6, "orchestrator → you: 1 decision waiting"],
-  [31.2, 'orchestrator$ ding relay 14 --message "approved: +1.2k calls"'],
-  [32.6, "$ ding board      5 cooking · GPU0-3 busy · you: 0 waiting"],
+  [31.2, 'orchestrator$ dkitchen_relay ticket=14 → "approved: +1.2k calls"'],
+  [32.6, "$ dkitchen_board   5 cooking · GPU0-3 busy · you: 0 waiting"],
 ];
 const CAPTIONS_ZH = [
-  [0.0, "$ ding board      4 个在做 · GPU2-3 空闲 · 单轨上 5 张票"],
+  [0.0, "$ dkitchen_board   4 个在做 · GPU2-3 空闲 · 5 张票"],
   [3.0, "你：方法 B 在数据集 X 上试试？"],
   [4.4, "总设计走过来：这件事会改模型看到的内容"],
   [5.4, "总设计：提案，B 需要新的 prompt，你来定"],
   [7.6, "你：可以，旧 prompt 留作 baseline"],
   [10.2, '总设计$ gh issue create --title "Eval method B on X"  → #17'],
-  [12.1, "总核查$ ding check-refs check.md  → 0 个问题"],
+  [12.1, "总核查$ dkitchen_check_refs draft=check.md  → 0 问题"],
   [13.5, "总核查 → 总编排：#17 通过"],
-  [14.6, "总编排$ ding board  → GPU2、GPU3 空闲"],
-  [15.6, '总编排$ ding relay 17 --message "start #17 on GPU2-3"'],
-  [17.2, "executor #17$ ding launch eval17 -- python eval.py --gpus 2,3"],
-  [19.1, "总编排$ ding watch  → #14 在等设计"],
+  [14.6, "总编排$ dkitchen_board  → GPU2、GPU3 空闲"],
+  [15.6, '总编排$ dkitchen_relay ticket=17 → "start #17 on GPU2-3"'],
+  [17.2, "executor #17$ dkitchen_launch eval17 → python eval.py --gpus 2,3"],
+  [19.1, "总编排$ dkitchen_watch  → #14 在等设计"],
   [21.4, "总设计 → 总编排：#14 已回复，见 ticket"],
   [23.6, "executor #13$ pytest  → 48 passed · 已开 PR #31"],
   [25.2, "总编排$ scripts/review_pr.py 31  → 可以合并"],
-  [26.4, "总编排$ ding merge 31 3f9c2a1  → 已合并"],
+  [26.4, "总编排$ dkitchen_merge pr=31 sha=3f9c2a1  → 已合并"],
   [28.6, "总编排 → 你：有 1 件事等你决定"],
-  [31.2, '总编排$ ding relay 14 --message "approved: +1.2k calls"'],
-  [32.6, "$ ding board      5 个在做 · GPU0-3 全忙 · 等你：0"],
+  [31.2, '总编排$ dkitchen_relay ticket=14 → "approved: +1.2k calls"'],
+  [32.6, "$ dkitchen_board   5 个在做 · GPU0-3 全忙 · 等你：0"],
 ];
 const CAPTIONS = LANG === "zh" ? CAPTIONS_ZH : CAPTIONS_EN;
 
@@ -796,7 +796,8 @@ function endCard(t) {
     const font = LANG === "zh" ? "FusionPixel" : "VT323", size = LANG === "zh" ? 24 : 28;
     const lines = tall ? TAGLINE : [TAGLINE.join(" ")];
     lines.forEach((line) => { text(line, cx, y, { size, font, align: "center", color: "#d8d2c4" }); y += tall ? 7 : 8; });
-    text("pipx install dkitchen", cx, y + 4, { size: 28, font: "VT323", align: "center", color: C.brass });
+    text(L("install it from Plugins → Discover", "在 Plugins → Discover 里安装"),
+      cx, y + 4, { size: LANG === "zh" ? 24 : 26, font: LANG === "zh" ? "FusionPixel" : "VT323", align: "center", color: C.brass });
   });
 }
 
