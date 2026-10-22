@@ -61,11 +61,11 @@
       "versions": [
         {
           "version": "0.5.0",
-          "publishTimestamp": 1792631138,
+          "publishTimestamp": 1792634119,
           "source": {
             "type": "git",
             "url": "https://github.com/songmingjun3/dkitchen",
-            "commit": "2f8d2589c0967b836a1ba90d6d59c9c8aa99c49f",
+            "commit": "8e4716ae1cf91cdef196589dab16a6d26c2cf5fe",
             "path": "src/dkitchen/harness/dsh-dkitchen"
           },
           "engines": {
