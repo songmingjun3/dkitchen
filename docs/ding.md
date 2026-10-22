@@ -430,6 +430,22 @@ same ones this guide documents. Three differences are worth knowing:
 
 The bundle lives at `src/dkitchen-node/`, and its `README.md` lists every tool and every setting.
 
+### Setting up a repository: `/setup-dkitchen`
+
+The setup skill is installed by the plugin itself, once per machine, into
+`$DSH_HOME/skills/setup-dkitchen`. The harness scans that directory, so `/setup-dkitchen` is
+available in **every** project without copying anything into a repository — there is no
+`ding skill install` step to run per checkout.
+
+Open a session in the repository you want to set up and run `/setup-dkitchen`. It is a wizard,
+not a one-shot command: it reads the repository, asks which stations to open, which model each
+one runs on, what stays with you, and which modules apply, then shows every file it will write
+and waits for your approval. The renderer it uses is `render.js`, so a machine with only the
+plugin needs no Python.
+
+The skill renders the same rule files the CLI does, from the same templates — the Node renderer
+is verified to produce byte-identical output, including the `AGENTS.md` pointer block.
+
 ## Use dkitchen inside the harness: `plugin`
 
 The harness loads plugins as **bundles**: a package whose `package.json` points at a
@@ -552,7 +568,7 @@ These commands carry out the kitchen's routine steps, as the house rules in [src
 | `ding log --item TEXT [--pending TEXT]` | Orchestrator | Posts a signed, UTC-stamped entry to the orchestrator log ticket: one line per `--item`, then the matters waiting for the user. |
 | `ding watch` | Orchestrator, in the background | Waits for GitHub activity the orchestrator must handle, prints it as one batch, and exits. See [While the user is away](../src/dkitchen/kitchen/modules/unattended.md). |
 | `ding check-refs draft.md` | Verifier | Checks every `` `file:line` `` in a draft comment (a name written right next to it must appear on that line) and every `sha256`, against `origin/main` or `--root DIR`. Exits 1 when something is wrong. |
-| `ding skill install` | Setup | Copies dkitchen's setup skill into `<repo>/.agents/skills/setup-dkitchen/`. |
+| `ding skill install` | Setup, CLI only | Copies dkitchen's setup skill into `<repo>/.agents/skills/setup-dkitchen/`. The plugin does not need this: it installs the skill once into `$DSH_HOME/skills`, where every project sees it. |
 | `ding plugin install` | Setup | Checks this machine, writes the kitchen profile, adds the route bundles, then installs the harness plugin bundle into a profile. See [Use dkitchen inside the harness](#use-dkitchen-inside-the-harness-plugin). |
 | `ding plugin status` | Setup, indirectly | The same facts as `check`, as JSON. The bundle's page in the harness reads it. |
 | `ding market index` | Release | Writes or validates the format-1 plugin market index the harness's Discover tab reads. See [Install from the page](#install-from-the-page-the-plugin-market). |

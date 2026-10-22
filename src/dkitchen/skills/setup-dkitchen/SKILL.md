@@ -15,15 +15,17 @@ This is a prompt-driven setup. Explore, present what you found, settle each sect
 - **Templates**: the `kitchen/` folder inside the installed `dkitchen` package, `../../kitchen/` from this skill's directory. Read [kitchen/README.md](../../kitchen/README.md) first: it maps each template to its installed path and defines the template markers, the station list, and the default vocabulary. The templates ship inside the package, so `render.py` finds them with no checkout; if it cannot, pass `--kitchen DIR`.
 - **Reference repo scripts**: [scripts/](scripts/) in this skill. Each starts with a comment listing what to adapt.
 - **Renderer**: [render.py](render.py) in this skill turns the templates into rule files for a chosen set of modules.
-- **`ding`**: `ding --help`, and the guide at https://github.com/songmingjun3/dkitchen/blob/main/docs/ding.md, including every `.dkitchen.toml` key.
-- **The harness**: `ding config models` lists the provider/model routes this machine can run, and `ding info` shows the route one session uses.
+- **`ding`**: `ding --help`, and the guide at https://github.com/songmingjun3/dkitchen/blob/main/docs/ding.md, including every `.dkitchen.toml` key. With the plugin, the equivalent tools are `dkitchen_status`, `dkitchen_config`, and the rest of the `dkitchen_*` list.
+- **The harness**: `ding config models` lists the provider/model routes this machine can run, and `ding info` shows the route one session uses. With the plugin, `dkitchen_config` with action `models` reports which route each station would use and whether it inherited the default.
 
 ## 1. Explore
 
 Read the repo's starting state; assume nothing.
 
 - **GitHub**: `git remote -v` and `gh repo view`. The kitchen runs on GitHub issues, so a repo without a GitHub remote stops here: tell the user, and offer to continue once one exists. `gh` must be installed and logged in (`gh auth status`).
-- **Harness**: `ding --version` (0.5.0 or later), `dsh --version`, `$DSH_HOME` (default `~/.dsh`), the profiles under `$DSH_HOME/profiles`, and whether the kitchen profile exists (`ding harness init` writes it). Confirm `ding up` starts the broker and `ding config models` lists at least one route.
+- **Which runtime**: check the tool list for any name starting `dkitchen_`. If there are any, the plugin is installed and this kitchen runs inside the harness process — no profile, no broker, and no `ding` needed. Otherwise fall back to the CLI. Say which one you found, because the setup steps differ.
+- **Harness (plugin)**: call `dkitchen_status`. It reports the repository it resolved, its `rootSource`, the stations, and each station's route. A `rootSource` of `process` means the repository was guessed from the harness's own directory, which is usually not the repo the user means — say so and ask them to open the session in the repo.
+- **Harness (CLI)**: `ding --version` (0.5.0 or later), `dsh --version`, `$DSH_HOME` (default `~/.dsh`), the profiles under `$DSH_HOME/profiles`, and whether the kitchen profile exists (`ding harness init` writes it). Confirm `ding up` starts the broker and `ding config models` lists at least one route.
 - **Existing setup**: `AGENTS.md`, `CLAUDE.md`, `.claude/CLAUDE.md`, `docs/agents/`, `.dkitchen.toml`, `.dsh/skills/`, `.agents/skills/`. A `<!-- dkitchen:start -->` block or a `.dkitchen.toml` means dkitchen is already installed: this run updates it in place. Files from other setups, such as Matt Pocock's `docs/agents/issue-tracker.md`, are merged, never overwritten.
 - **The work**: the README, the main code, how tests run (CI files, `pyproject.toml`, `package.json`, `Makefile`), and the signals for each module in [Modules](#modules): model calls and paid APIs, prompts, training or evaluation scripts, output folders other work builds on, long jobs.
 - **Resources**: `nvidia-smi` or the equivalent, other hosts mentioned in docs or SSH config, shared services such as model servers and the tunnels to them. On Windows note whether `tmux` exists: without it, `ding launch` runs jobs as detached processes and `ding logs` / `ding stop` replace the tmux pane.
@@ -76,7 +78,9 @@ Show the user:
 - the `.dkitchen.toml`, holding `[kitchen] stations`, the `[models.<station>]` tables that differ from the default, only keys that differ from the defaults elsewhere, plus `[log] issue` for `unattended`;
 - the adapted repo scripts;
 - the GitHub changes: the four `status:*` labels from [kitchen/core/issue-tracker.md](../../kitchen/core/issue-tracker.md), and for `unattended` a pinned "Orchestrator log" ticket;
-- the harness steps: `ding harness init`, `ding skill install`, and one `ding new --station <name>` per station, with the session id each prints.
+- the harness steps: with the plugin, one `dkitchen_new_session` call per station; with the
+  CLI, `ding harness init` and one `ding new --station <name>` per station. Either way, `ding
+  skill install` first, and the session ids that come back.
 
 Let the user edit anything before you write. Done when the user approves the draft, including each GitHub change by name.
 
@@ -100,13 +104,35 @@ Then edit the rendered files:
 
 **Settings and scripts.** Write `.dkitchen.toml` with `[kitchen] stations`, the `[models.<station>]` tables, and the rest of the approved keys; write the repo scripts; then make the approved GitHub changes with `gh label create` and, for `unattended`, `gh issue create` and `gh issue pin`, writing the new ticket's number into `[log] issue`.
 
-**Harness.** Run `ding harness init` if the kitchen profile does not exist yet, then `ding skill install` so this skill lives in `<repo>/.agents/skills/setup-dkitchen/` for later runs, then open each station's session:
+**Harness.** The kitchen runs inside DeepSeek Harness, and there are two ways to open its
+stations. Use whichever this machine has, and say which you used.
+
+*With the plugin (preferred).* When the `dkitchen_new_session` tool is available, the kitchen
+runs inside the harness process and needs no profile, no broker, and no `ding` at all. Call it
+once per station:
+
+```text
+dkitchen_new_session(name="<station>", station="orchestrator", message="...")
+```
+
+The message tells the station to read `AGENTS.md` and `docs/agents/roles.md`, and, for the
+orchestrator, to call `dkitchen_board` before reporting. It returns the session id; record each
+one in the table at the top of `docs/agents/roles.md`. Do not run `ding harness init` or
+`ding new` when the plugin is present — the plugin registers the tools in the harness the user
+is already running, and a kitchen profile would only duplicate it.
+
+*With the CLI.* When there is no `dkitchen_*` tool, the stations are driven by `ding`, which
+needs a harness profile of its own:
 
 ```bash
+ding harness init        # once per machine: the ACP profile ding boots
 ding new --cwd . --name '<station>' --station orchestrator --message-file .dkitchen-brief-orchestrator.md
 ```
 
-The first message tells the station to read `AGENTS.md` and `docs/agents/roles.md`, and, for the orchestrator, to run `ding board` before reporting. Write those brief files, create the sessions, then delete the briefs and record each session id in the table at the top of `docs/agents/roles.md`.
+The first message says the same thing; the orchestrator runs `ding board` rather than the tool.
+
+Either way, `ding skill install` keeps this skill in `<repo>/.agents/skills/setup-dkitchen/` for
+later runs. Write the brief files, create the sessions, then delete the briefs.
 
 Done when every approved file exists with its approved content, every approved GitHub change is made, and each station's session id is recorded in `docs/agents/roles.md`.
 
@@ -116,9 +142,10 @@ Run each check and fix what fails:
 
 - `grep -rn '<!-- module:\|<!-- /module:\|<!-- fill:' docs/agents AGENTS.md CLAUDE.md .claude/CLAUDE.md` finds nothing.
 - Every relative link in the installed files resolves to an existing file.
-- `ding config show` prints the chosen stations and routes, and every `[models.<station>]` names a route `ding config models` offers.
-- `ding up` starts the broker; `ding board` lists one session per station; `ding info <session>` shows the route you intended.
-- `ding watch --help`, `ding relay --help`, and `ding merge --help` print help.
+- `ding config show` prints the chosen stations and routes, and every `[models.<station>]` names a route `ding config models` offers. With the plugin, `dkitchen_status` reports the same stations and routes for this repository, and its `rootSource` should be `session` or `argument` rather than `process` — `process` means the repository was guessed.
+- With the CLI: `ding up` starts the broker; `ding board` lists one session per station; `ding info <session>` shows the route you intended.
+- With the plugin: `dkitchen_list_sessions` lists one session per station, and `dkitchen_info` on each shows the route you intended.
+- `ding watch --help`, `ding relay --help`, and `ding merge --help` print help; with the plugin, `dkitchen_watch`, `dkitchen_relay`, and `dkitchen_merge` are in the tool list and say whether `gh` is installed.
 - Each installed script runs with `--help`, and `scripts/review_pr.py` imports cleanly.
 - `gh label list --search status:` shows the four labels.
 
@@ -128,11 +155,11 @@ Done when every check passes, or the user has been told exactly which one fails 
 
 Tell the user, briefly:
 
-1. that every station is a DeepSeek Harness session they can open in the GUI to watch, while `ding` keeps driving it;
+1. that every station is a DeepSeek Harness session they can open in the GUI to watch, while the kitchen keeps driving it;
 2. to put those session names into the table at the top of `docs/agents/roles.md` if step 5 did not;
 3. how to start: describe the first piece of work to the designer, who writes it as a ticket;
-4. for `unattended`, that the orchestrator starts `ding watch` in the background at the end of each round;
-5. that the rules are theirs to edit, and that stations and models change without touching them: `ding config enable designer`, `ding config set models.verifier.model <id>`, or rerun this skill.
+4. for `unattended`, that the orchestrator runs a batch of `dkitchen_watch` (or `ding watch` with the CLI) at the end of each round;
+5. that the rules are theirs to edit, and that stations and models change without touching them: `ding config enable designer`, `ding config set models.verifier.model <id>` — or, with the plugin, the `dkitchen_config` tool's `set` action — or rerun this skill.
 
 ## Modules
 
