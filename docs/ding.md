@@ -456,7 +456,8 @@ publishes one, so the bundle can be found by name instead of pasted as a path:
    optional bundle off, and there is no official market: Discover lists only the indexes you
    add).
 2. **Discover** → **Add index source**, and paste
-   `https://raw.githubusercontent.com/songmingjun3/dkitchen/main/docs/market/index.json`.
+   `https://raw.githubusercontent.com/songmingjun3/dkitchen/feat/dsh-harness/docs/market/index.json`.
+   (The branch path moves to `main` once the bundle is merged there.)
 3. Search `dkitchen`, open the entry, and press **Install**.
 
 The index is format 1, the format `@deepseek-ai/dsh-plugin-market-index` validates. Each
