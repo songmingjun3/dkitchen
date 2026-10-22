@@ -34,18 +34,31 @@ You need:
 - **The `gh` CLI**, installed and logged in, if you want to address sessions by GitHub issue. Every session command except the ticket lookups works without it.
 - `tmux` **on POSIX only**, for `ding launch`. On Windows there is no tmux, and `ding launch` runs the job as a detached process instead; `ding logs` and `ding stop` work either way.
 
-Install with pipx:
+Install into the environment whose `python` you already use:
+
+```bash
+python -m pip install dkitchen
+```
+
+Or with pipx, if this machine keeps standalone tools apart from an interpreter:
 
 ```bash
 pipx install dkitchen
 ```
 
-Or into a virtual environment:
+Or into a dedicated virtual environment:
 
 ```bash
 python -m venv ~/.venvs/dkitchen
 ~/.venvs/dkitchen/bin/python -m pip install dkitchen
 ```
+
+Either way, note which interpreter it went into: `ding mcp-serve` runs under that one, and
+the harness starts it from a scrubbed environment. If `ding` ends up somewhere the harness
+cannot resolve, set `DKITCHEN_DING` to its full path in the profile's patch.
+
+If you would rather not run these by hand, ask an agent in any harness session to install
+dkitchen: the `bash` tool can run them, and the bundle's page tells the agent what to do.
 
 `ding` talks to the harness over the Agent Client Protocol: it starts one `dsh --profile <name>` process and multiplexes every kitchen session over it. That process is owned by a **broker** that `ding` starts on demand, because a harness turn outlives a single command.
 

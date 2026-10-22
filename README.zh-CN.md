@@ -134,8 +134,11 @@ ding logs train                                       # 这个任务的最新输
 ### 1. 安装 `ding`
 
 ```bash
-pipx install dkitchen
+python -m pip install dkitchen
 ```
+
+（若这台机器用 pipx 管理独立工具，则是 `pipx install dkitchen`。无论哪种，记住它装进了哪个解释器：
+`ding mcp-serve` 就在那个解释器下运行。）
 
 ### 2. 把它装进 harness
 

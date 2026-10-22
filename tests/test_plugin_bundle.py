@@ -102,6 +102,35 @@ def test_every_locale_has_a_title_and_a_description():
         assert meta["description"].strip(), f"{path.name} needs a description"
 
 
+def test_every_locale_defines_the_keys_the_page_asks_for():
+    """A missing key renders as its own name, so the page would show `installPython`."""
+    source = (BUNDLE / "client.js").read_text(encoding="utf-8")
+    wanted = set(re.findall(r"t\('([a-zA-Z]+)'\)", source))
+    assert wanted, "the page should ask the dictionary for its copy"
+    for path in sorted((BUNDLE / "locale").glob("*.json")):
+        dictionary = json.loads(path.read_text(encoding="utf-8"))
+        missing = sorted(wanted - set(dictionary))
+        assert not missing, f"{path.name} is missing {', '.join(missing)}"
+
+
+def test_the_page_names_pip_as_the_default_installer():
+    """`pipx` is not installed on every machine; `pip` into the user's interpreter is."""
+    for path in sorted((BUNDLE / "locale").glob("*.json")):
+        dictionary = json.loads(path.read_text(encoding="utf-8"))
+        assert "pip install dkitchen" in dictionary["installPython"]
+        assert dictionary["installPython"].split()[:3] == ["python", "-m", "pip"]
+        assert dictionary["installFinish"] == "ding plugin install"
+
+
+def test_the_agent_message_says_what_to_run_and_to_wait_for_consent():
+    """The page cannot start an install, but a session's shell tool can; this is its brief."""
+    for path in sorted((BUNDLE / "locale").glob("*.json")):
+        message = json.loads(path.read_text(encoding="utf-8"))["agentMessage"]
+        assert "pip install dkitchen" in message
+        assert "ding plugin install" in message
+        assert "restart" in message.lower() or "重启" in message
+
+
 def test_the_icon_is_an_svg_the_harness_accepts():
     """The harness takes SVG/PNG/JPEG/WebP up to 256 KiB, inside the package."""
     icon = BUNDLE / "icon.svg"

@@ -134,8 +134,12 @@ The rules every station follows live in [src/dkitchen/kitchen/](https://github.c
 ### 1. Install `ding`
 
 ```bash
-pipx install dkitchen
+python -m pip install dkitchen
 ```
+
+(`pipx install dkitchen` instead, if this machine keeps standalone tools apart from an
+interpreter. Either way, remember which interpreter it went into: `ding mcp-serve` runs under
+that one.)
 
 ### 2. Make it part of the harness
 

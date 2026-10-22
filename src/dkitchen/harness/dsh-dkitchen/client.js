@@ -71,7 +71,9 @@ window.__ModuleLoader__.load({
             ok: Boolean(enabled),
           })),
         h('p', { style: styles.note }, t('setupNote')),
-        h('code', { style: styles.command }, 'pipx install dkitchen\nding plugin install'));
+        h('code', { style: styles.command },
+          `${t('installPython')}\n${t('installFinish')}`),
+        h('p', { style: styles.note }, t('setupAsk')));
     }
 
     return {
