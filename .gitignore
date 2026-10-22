@@ -1,8 +1,18 @@
-__pycache__/
-.pytest_cache/
-.pytest-tmp/
-*.egg-info/
-.venv/
-build/
-dist/
+node_modules/
 /output/
+*.log
+
+# The setup skill ships Python helper scripts that a repository may run; a checkout that has
+# run them leaves compiled files behind, which must never be committed.
+__pycache__/
+*.pyc
+.venv/
+
+# Left behind by a Node test run or a market-index dry run.
+coverage/
+temp-index.json
+
+# Scratch directories from the retired Python suite. They are no longer produced, but a
+# checkout that ran the old tests still has them, and they must never be committed.
+.pytest-tmp/
+.pytest_cache/

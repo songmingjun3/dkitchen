@@ -13,14 +13,22 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ['3.10', '3.11', '3.12']
+        node-version: ['22.x', '24.x']
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: src/dkitchen-node
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-node@v7
         with:
-          python-version: ${{ matrix.python-version }}
-      - run: python -m pip install -e '.[dev]'
-      # The suite drives the real `ding` CLI and starts a real ACP subprocess (the scripted
-      # stand-in in tests/fake_dsh.py), so both platforms are exercised, not merely imported.
-      - run: python -m pytest
+          node-version: ${{ matrix.node-version }}
+      # There is nothing to install: every module this bundle imports is supplied by the
+      # harness as a peer. The suite runs the plugin's own modules, so both platforms are
+      # exercised rather than merely imported.
+      - run: node --test "tests/*.test.mjs"
+      # The market index the Discover tab reads must stay valid, and must keep naming the
+      # bundle directory that exists at this commit.
+      - name: Validate the plugin market index
+        working-directory: .
+        run: node scripts/market.mjs index --check

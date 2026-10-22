@@ -13,14 +13,14 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/dkitchen/"><img src="https://img.shields.io/pypi/v/dkitchen" alt="PyPI"></a>
-  <a href="https://pypi.org/project/dkitchen/"><img src="https://img.shields.io/pypi/pyversions/dkitchen" alt="Python"></a>
   <a href="https://github.com/songmingjun3/dkitchen/actions/workflows/tests.yml"><img src="https://github.com/songmingjun3/dkitchen/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
   <a href="https://github.com/songmingjun3/dkitchen/blob/main/LICENSE"><img src="https://img.shields.io/github/license/917Dhj/dkitchen" alt="License"></a>
   <a href="https://x.com/dahuoji09"><img src="https://img.shields.io/badge/follow-%40dahuoji09-000000?logo=x" alt="X: @dahuoji09"></a>
 </p>
 
-dkitchen 是我每天用来跑科研仓库的多 agent 工作流。它给一组 **DeepSeek Harness** 会话分配固定岗位，用 GitHub issue 作为它们交接工作的共同载体，写清什么时候必须停下来问你，并提供把这些串起来的工具。只有你能做的决定仍然留给你：研究什么、试什么、花多少。
+dkitchen 是我每天用来跑科研仓库的多 agent 工作流。它给一组 **Deep​Seek​ Harness** 会话分配固定岗位，用 GitHub issue 作为它们交接工作的共同载体，写清什么时候必须停下来问你，并提供把这些串起来的工具。只有你能做的决定仍然留给你：研究什么、试什么、花多少。
+
+它现在是一个 Deep​Seek​ Harness 插件。工具直接注册在 harness 进程里，所以装好这个 bundle 就装完了全部：不用装包，不用起常驻进程，也不用另外开一个 profile。
 
 ## 🍽️ 为什么要开一个厨房
 
@@ -41,16 +41,15 @@ dkitchen 就把你的 agent 摆成这个样子。你就是主厨。
 | 岗位 | 在后厨里 | 做什么 | 跑在哪 |
 | --- | --- | --- | --- |
 | 👑 **你** | 主厨 | 定方向、批方案和预算、判断结果对你论文意味着什么。 | 你 |
-| 🤖 **总编排** | 出菜口的副厨 | 排票、排 GPU、排并发。转达消息、审查并合并 PR、向你汇报事实。 | 一个 DeepSeek Harness 会话，用你手上的最强模型 |
-| 🤔 **总设计** | 研发菜谱的人 | 写票，设计方法和模型能看到的每一段文字，解读结果。 | 一个 DeepSeek Harness 会话，用最强模型 |
-| 🔍 **核查** | 试菜的人 | 在花钱之前对着代码和数据核对事实。只报告发现，不做决定。 | 一个 DeepSeek Harness 会话，用便宜些的模型 |
-| 🔪 **执行者** | 掌勺的 | 每张票一个全新会话，在自己的 worktree 里。实现、运行、在票上汇报。 | 每张票一个 DeepSeek Harness 会话 |
+| 🤖 **总编排** | 出菜口的副厨 | 排票、排 GPU、排并发。转达消息、审查并合并 PR、向你汇报事实。 | 一个 Deep​Seek​ Harness 会话，用你手上的最强模型 |
+| 🤔 **总设计** | 研发菜谱的人 | 写票，设计方法和模型能看到的每一段文字，解读结果。 | 一个 Deep​Seek​ Harness 会话，用最强模型 |
+| 🔍 **核查** | 试菜的人 | 在花钱之前对着代码和数据核对事实。只报告发现，不做决定。 | 一个 Deep​Seek​ Harness 会话，用便宜些的模型 |
+| 🔪 **执行者** | 掌勺的 | 每张票一个全新会话，在自己的 worktree 里。实现、运行、在票上汇报。 | 每张票一个 Deep​Seek​ Harness 会话 |
 
-**岗位由你选。** 不是每个仓库都需要四个岗位：`.dkitchen.toml` 里列出这套厨房实际跑的岗位，第一次初始化时由 skill 问你。去掉总设计，总编排就自己写票；去掉核查，总编排就自己做核对。以后想改是一条命令的事，而不是重写规则：
+**岗位由你选。** 不是每个仓库都需要四个岗位：`.dkitchen.toml` 里列出这套厨房实际跑的岗位，第一次初始化时由 skill 问你。去掉总设计，总编排就自己写票；去掉核查，总编排就自己做核对。以后想改是一次工具调用的事，而不是重写规则：
 
-```bash
-ding config enable designer
-ding config set models.verifier.model claude-sonnet-5
+```text
+dkitchen_config(action="set", key="kitchen.stations", value="orchestrator,executor,verifier")
 ```
 
 每个岗位还有自己的模型路由，所以总编排可以跑你最强的模型，核查跑便宜的——同一个 harness、同一个 profile、同一套登录状态。
@@ -62,7 +61,7 @@ ding config set models.verifier.model claude-sonnet-5
 1. **你和总设计谈定要做什么。** 总设计把它写成一条 GitHub issue：目标、具体步骤、这项工作可以花的预算。
 2. **核查对着代码和数据核对票的前提**：字段名、数据集范围、调用次数、成本估算。
 3. **总编排把票派出去**，新开一个执行者会话，并挑空闲的 GPU。
-4. **执行者干活，并在票上汇报。** 每条留言开头都是固定的四行：状态、在等谁、关键数字、下一步。长任务用 `ding launch` 起；任务退出时 `ding` 会唤醒执行者，让它读输出继续。
+4. **执行者干活，并在票上汇报。** 每条留言开头都是固定的四行：状态、在等谁、关键数字、下一步。长任务用 `dkitchen_launch` 起；任务退出时 harness 会把一条会话通知推给执行者，让它读输出继续。
 5. **结果交给总设计**解读。总编排审查 PR、合并，并记录它做了什么、为什么。
 6. **你读一份简短报告**，做下一个决定。
 
@@ -79,7 +78,7 @@ ding config set models.verifier.model claude-sonnet-5
 
 其余的事厨房自己搞定，就一条原则：**谁来做都会这么做，agent 就自己做；如果有几种合理做法，而这个选择会影响结果、花费或方向，就停下来等你。**
 
-这就是你能走开的原因。你上课、睡觉、读论文的时候，一个 issue 监视器会在执行者跑完一个阶段、卡住、或者长时间没动静时唤醒总编排；你留言时也会；有新 PR 时也会。总编排只推进已经批准过的事，并给你留一份回来要做的决定清单。
+这就是你能走开的原因。你上课、睡觉、读论文的时候，`dkitchen_watch` 会在执行者跑完一个阶段、卡住、或者长时间没动静时唤醒总编排；你留言时也会；有新 PR 时也会。总编排只推进已经批准过的事，并给你留一份回来要做的决定清单。
 
 ## ⚖️ 一份资源池
 
@@ -92,72 +91,59 @@ ding config set models.verifier.model claude-sonnet-5
 
 ## 🧰 工具
 
-### 🛎️ `ding`，那只铃
+### 🛎️ `dkitchen_*` 这批工具
 
-`ding` 创建 DeepSeek Harness 会话、在会话之间传消息、在长任务结束时唤醒会话。它驱动的每个会话都是真正的 harness 会话：在 DeepSeek Harness 的图形界面里看得见，由 harness 持久化，重启之后还在。
+装好 bundle，每个会话就拿到了厨房的命令。它们创建 harness 会话、在会话之间传消息、在长任务结束时唤醒发起它的会话。它们驱动的每个会话都是真正的 harness 会话：在 Deep​Seek​ Harness 窗口里看得见，由 harness 持久化，重启之后还在。
 
-```bash
-ding new --cwd . --issue 42 --name '消融' --station executor --message-file brief.md   # 为 #42 开一个会话，打印它的 id
-ding board                                            # 这个仓库里谁在做什么
-ding send '#42' --from orchestrator --message-file note.md
-ding launch train -- python train.py                  # 后台运行，退出时唤醒我
-ding logs train                                       # 这个任务的最新输出
+```text
+dkitchen_new_session(name="消融", station="executor", issue=42, message="…")   # 为 #42 开一个会话
+dkitchen_board()                                          # 这个仓库里谁在做什么
+dkitchen_send(target="#42", sender="orchestrator", message="GPU 5 空出来了")
+dkitchen_launch(name="train", command=["python", "train.py"])   # 后台运行，退出时唤醒我
+dkitchen_logs(job="train: …")                             # 这个任务的最新输出
 ```
 
-会话可以按 id、按名字、或者按 `'#42'` 这样的 issue 来寻址；`ding` 会找到拥有那张票的会话。在 Linux 上，`ding board` 还会列出没用 `ding` 启动的长任务，让你看到哪些任务结束时没人会被唤醒。
+会话可以按 id、按名字、或者按 `#42` 这样的 issue 来寻址；dkitchen 会找到拥有那张票的会话。`dkitchen_board` 列出它在这个仓库里开过的每个会话，跟 harness 当前显示哪个会话无关。
 
-`ding` 通过 Agent Client Protocol 驱动 harness：保持一条长连接，每个会话一个消息队列。在 harness 里，`dsh-dkitchen` 插件把同一批命令暴露成 MCP 工具，会话不必开终端就能跑厨房。完整说明见 [docs/ding.md](docs/ding.md)。
+工具就在 harness 里，所以会话不用开终端就能跑厨房，也不用在旁边维持任何进程。
 
 ### 📋 厨房的日常动作
 
-各岗位每天的动作也是 `ding` 命令，所以每次都按同样稳妥的方式执行：
+各岗位每天的动作也是工具，所以每次都按同样稳妥的方式执行：
 
-- `ding relay` 把消息发给某张票的执行者，只在确认送达之后才在票上留下对应留言。
-- `ding merge` 只在被审查过的那个 HEAD 上合并 PR，且只在票上的执行者正在等总编排合并时。
-- `ding watch` 在总编排的后台等着，某张票需要处理时唤醒它。
-- `ding log` 维护一份总编排在你看不见时做了什么的日志。
-- `ding check-refs` 核对核查引用的每个文件、每一行、每个摘要。
+- `dkitchen_relay` 把消息发给某张票的执行者，只在确认送达之后才在票上留下对应留言。
+- `dkitchen_merge` 只在被审查过的那个 HEAD 上合并 PR，且只在票上的执行者正在等总编排合并时。
+- `dkitchen_watch` 报告一批总编排必须处理的 GitHub 动态，然后返回，好让它下一轮再调。
+- `dkitchen_log` 维护一份总编排在你看不见时做了什么的日志。
+- `dkitchen_check_refs` 核对核查引用的每个文件、每一行、每个摘要。
 
 ### 📜 后厨规矩
 
-每个岗位遵守的规则在 [src/dkitchen/kitchen/](src/dkitchen/kitchen/README.md)：谁负责什么、票怎么写、什么时候停下发问，以及关于运行预算、模型提示词、登记产物、无人值守的可选模块。
+每个岗位遵守的规则在 [src/dkitchen-node/kitchen/](src/dkitchen-node/kitchen/README.md)：谁负责什么、票怎么写、什么时候停下发问，以及关于运行预算、模型提示词、登记产物、无人值守的可选模块。
 
 ## 🚀 上手
 
 ### 前置条件
 
-- **DeepSeek Harness**，以及你本来就能跑的 provider。Windows 上 `ding` 会自己找到桌面版；其它平台把 `dsh` 放进 `PATH`，或者设置 `DKITCHEN_DSH_BIN`。
-- **Python 3.10 或更高版本** —— Windows、macOS、Linux 都行。
-- **一个 GitHub 仓库和已登录的 `gh` CLI**。
-- Linux/macOS 上如果要让 `ding launch` 把任务留在 pane 里，需要 `tmux`。Windows 上任务以分离进程运行，配 `ding logs` 和 `ding stop`。
+- **Deep​Seek​ Harness**，以及你本来就能跑的 provider。插件需要 harness 提供 `tools`、`agents`、`sessions`、`jobs`、`approval` 这些服务——当前的版本都有。
+- **一个 GitHub 仓库和已登录的 `gh` CLI**。只有票相关工具需要 `gh`，其余没有它也能用。
+- 别的都不用。没有解释器要装：bundle 就是普通 JavaScript，由 harness 在自己的进程里运行。
 
-### 1. 安装 `ding`
+### 1. 装 bundle
 
-```bash
-python -m pip install dkitchen
+在 harness 里打开 **Plugins → Discover**，加上这个索引
+
+```text
+https://raw.githubusercontent.com/songmingjun3/dkitchen/main/docs/market/index.json
 ```
 
-（若这台机器用 pipx 管理独立工具，则是 `pipx install dkitchen`。无论哪种，记住它装进了哪个解释器：
-`ding mcp-serve` 就在那个解释器下运行。）
+然后安装 `dkitchen`。或者直接把本地 checkout 装进去：**Plugins → install bundle**，指向 `src/dkitchen-node/`。harness 加载之后，新工具就会出现在每个会话里。
 
-### 2. 把它装进 harness
+第一次启动还会把初始化 skill 装进这台机器级的 skill 目录，所以每个项目里都能用 `/setup-dkitchen`，不只是这个 checkout。
 
-```bash
-ding plugin install    # 把 dsh-dkitchen bundle 装进你的 desktop profile
-```
+### 2. 配置你的厨房
 
-重启 harness。它的 **Plugins** 页面里会出现 `dkitchen`，之后每个会话都能调用
-`mcp__dkitchen__new_session`、`mcp__dkitchen__board`、`mcp__dkitchen__launch` 等工具——
-和下面的命令行是同一批命令，只是不用离开对话。这个 bundle 是纯声明式的：它插入的是
-harness 自带的 MCP 客户端，指向 `ding mcp-serve`。
-
-### 3. 装 skill 并配置你的厨房
-
-```bash
-ding skill install     # 把初始化 skill 装到 .agents/skills/setup-dkitchen/
-```
-
-在你的仓库里开一个 DeepSeek Harness 会话，运行：
+在你的仓库里开一个 Deep​Seek​ Harness 会话，运行：
 
 ```text
 /setup-dkitchen
@@ -174,10 +160,13 @@ ding skill install     # 把初始化 skill 装到 .agents/skills/setup-dkitchen
 这些规则是为计算类科研写的，其中大部分也适用于任何有长任务的仓库。安装 skill 会按你的仓库改写这些规则。
 
 **Windows 上能用吗？**
-能。会话、消息、票、初始化 skill 都一样；`ding launch` 把 tmux 换成分离进程，唯一只在 Linux 上有的附加项——board 结尾那张"没人会唤醒的任务"表——在 Windows 上不显示。
+能，而且没区别。旧的命令行工具在 Linux 上靠 tmux、在 Windows 上靠分离进程；插件两边都用 harness 自己的任务登记，所以没有平台相关的细节要记。
 
 **要装好几个 agent 产品吗？**
-不用。每个岗位都是一个 DeepSeek Harness 会话，一个 harness 进程服务全部。不同岗位仍然可以用不同模型。
+不用。每个岗位都是一个 Deep​Seek​ Harness 会话，一个 harness 进程服务全部。不同岗位仍然可以用不同模型。
+
+**需要 Python 吗？**
+不需要。早期版本带一个 Python 命令行工具，通过 broker 和 MCP server 用 Agent Client Protocol 驱动会话。插件在进程内做同样的事，那套运行时已经删掉了。
 
 **小项目用这么多流程，会不会太重？**
 先只开总编排和执行者——`[kitchen] stations = ["orchestrator", "executor"]`——需要时再加总设计和核查。

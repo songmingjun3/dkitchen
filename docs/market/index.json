@@ -42,7 +42,7 @@
       "homepage": "https://github.com/songmingjun3/dkitchen",
       "repository": {
         "url": "https://github.com/songmingjun3/dkitchen",
-        "directory": "src/dkitchen/harness/dsh-dkitchen"
+        "directory": "src/dkitchen-node"
       },
       "metadata": {
         "category": "workflow",
@@ -60,13 +60,13 @@
       },
       "versions": [
         {
-          "version": "0.5.0",
-          "publishTimestamp": 1792634119,
+          "version": "0.6.0",
+          "publishTimestamp": 1792651407,
           "source": {
             "type": "git",
             "url": "https://github.com/songmingjun3/dkitchen",
-            "commit": "8e4716ae1cf91cdef196589dab16a6d26c2cf5fe",
-            "path": "src/dkitchen/harness/dsh-dkitchen"
+            "commit": "df5da5796f3f2dd7e61ac72ffbc60d2e3dea0549",
+            "path": "src/dkitchen-node"
           },
           "engines": {
             "dsh": ">=0.2.0-rc.1 <0.3.0"

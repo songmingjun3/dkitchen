@@ -1,65 +1,71 @@
 # Development
 
-- Install with `python -m pip install -e '.[dev]'`.
-- Run `python -m pytest` after code changes. The suite runs on Linux and Windows, so keep
-  both supported: no `fcntl`, `os.getuid`, `/proc`, or `tmux` outside a guarded branch.
-- Tests must never start the real DeepSeek Harness, send a message to a real session, read a
-  real session log, or write to GitHub. `tests/conftest.py` enforces the first three: it
-  points `DKITCHEN_DSH_BIN` at `tests/fake_dsh.py`, gives each test its own state root and
-  `DSH_HOME`, forbids starting a detached broker, and fails a test that launches the
-  installed harness.
+- Everything ships as one Deep​Seek​ Harness plugin, in `src/dkitchen-node/`. There is no
+  Python runtime to install and no package to build.
+- Run the suite with `node --test "tests/*.test.mjs"` from `src/dkitchen-node/`. There is
+  nothing to install first: every module the bundle imports is supplied by the harness as a
+  peer dependency.
+- The suite runs on Linux and Windows, so keep both supported: a test that needs `tmux`,
+  `/proc`, `fcntl`, or a POSIX path is a test that will fail someone's CI.
+- Tests must never start the real Deep​Seek​ Harness, send a message to a real session, read a
+  real session log, or write to GitHub. Each test that touches state points
+  `DKITCHEN_STATE_HOME` (or `DSH_HOME`) at a fresh temporary directory, and nothing in the
+  suite shells out to `gh`.
+- `node --test` isolates each test file in a child process. Under the Windows sandbox those
+  spawns are refused (`spawn EPERM`); run the suite with
+  `node --test --experimental-test-isolation=none "tests/*.test.mjs"` there. CI uses the
+  default isolation.
 
 ## Where things live
 
 | Module | Role |
 | --- | --- |
-| `src/dkitchen/acp.py` | The Agent Client Protocol client: one `dsh` process, many sessions |
-| `src/dkitchen/broker.py` | The long-lived process that owns that connection, with one queue per session |
-| `src/dkitchen/logs.py` | Read-only folding of harness session logs, for `read` and `board` |
-| `src/dkitchen/registry.py` | dkitchen's own record of the sessions it created (names, stations, routes) |
-| `src/dkitchen/launcher.py` | Long jobs: tmux on POSIX, a detached process on Windows |
-| `src/dkitchen/locks.py` | The one cross-platform exclusive file lock |
-| `src/dkitchen/paths.py` | State root, harness home, and locating the `dsh` launcher |
-| `src/dkitchen/ding.py` | The CLI |
-| `src/dkitchen/skills/setup-dkitchen/` | The setup skill, shipped in the package and installed by `ding skill install` |
-| `src/dkitchen/kitchen/` | The station rules the setup skill renders into a repository, shipped as package data |
-| `src/dkitchen/mcp.py` | The MCP server on stdio, which turns the CLI into tools a harness session can call |
-| `src/dkitchen/plugin.py` | Installing the `dsh-dkitchen` bundle through the harness's own launcher |
-| `src/dkitchen/market.py` | The format-1 plugin market index the harness's Discover tab reads |
-| `src/dkitchen/harness/dsh-dkitchen/` | The Python-era bundle: an MCP client row pointed at `ding mcp-serve` |
-| `src/dkitchen-node/` | The plugin runtime: the same kitchen registered in-process through `ctx.agents`, `ctx.sessions`, `ctx.jobs`, and `ctx.tools` |
+| `src/dkitchen-node/index.js` | Mounting the plugin: the services it injects, config resolution per call, tool registration |
+| `src/dkitchen-node/lib/agents.js` | Creating a station session through `ctx.agents`, and delivering a message to it |
+| `src/dkitchen-node/lib/tools.js` | The session tools: new, send, read, info, rename, list, board, status |
+| `src/dkitchen-node/lib/jobs.js`, `lib/job-tools.js` | Long jobs through `ctx.jobs` and `ctx.subprocess`, plus the `runs.jsonl` record |
+| `src/dkitchen-node/lib/tickets.js` | Reading a ticket: its role, status block, and staleness |
+| `src/dkitchen-node/lib/ticket-tools.js` | Relay, merge, log, executor status |
+| `src/dkitchen-node/lib/watch.js`, `lib/watch-tools.js` | One batch of GitHub activity the orchestrator must handle |
+| `src/dkitchen-node/lib/refs.js` | Checking the `file:line` and `sha256` references a draft cites |
+| `src/dkitchen-node/lib/registry.js`, `lib/state-tools.js` | dkitchen's own record of the sessions it opened |
+| `src/dkitchen-node/lib/config.js`, `lib/config-tools.js` | `.dkitchen.toml`: parsing, refusals, and the surgical writer |
+| `src/dkitchen-node/lib/paths.js`, `lib/cwd.js`, `lib/locks.js` | The state root, which repository a call is about, and the one exclusive file lock |
+| `src/dkitchen-node/lib/skill.js` | Installing the setup skill once per machine, into `<DSH_HOME>/skills` |
+| `src/dkitchen-node/lib/approval.js` | The `[approval]` seam that answers a policy by rule |
+| `src/dkitchen-node/lib/github.js` | Every `gh` call, and nothing else |
+| `src/dkitchen-node/client.js` | The bundle's section on the harness's Plugins page |
+| `src/dkitchen-node/skills/setup-dkitchen/` | The setup skill, and the renderer that needs only Node |
+| `src/dkitchen-node/kitchen/` | The station rules the setup skill renders into a repository |
+| `scripts/market.mjs` | Generating and validating the plugin market index the Discover tab reads |
 
-Both runtimes are live. They read the same `.dkitchen.toml` and write the same
-`sessions.json`, so they must not run against one state directory at once. `src/dkitchen-node/`
-holds its own test suite (`node --test 'tests/*.test.mjs'`), which must stay green alongside
-`python -m pytest`.
+The bundle's own README, `src/dkitchen-node/README.md`, is the reference for a user: which
+tools exist, what each one needs, and how a repository configures its kitchen.
 
-## Where the plugin runtime's rules live
+## The rules a change must keep true
 
-The Node port translates the Python behaviour rather than redesigning it, so a change to a rule
-belongs in both until the Python runtime is removed:
+These hold across modules, and a change that breaks one is a bug even when the tests pass:
 
-| Rule | Python | Node |
-| --- | --- | --- |
-| Configuration and its refusals | `config.py` | `lib/config.js` |
-| Ticket role, status block, staleness | `watch.py` | `lib/tickets.js` |
-| Relay, merge, log ordering | `orchestrate.py` | `lib/orchestrate.js` |
-| Reference checking | `refs.py` | `lib/refs.js` |
-| Registry schema | `registry.py` | `lib/registry.js` |
-
-`tests/test_market.py` and `src/dkitchen-node/tests/config.test.mjs` both exist because the two
-readers must accept exactly the same files: a file one accepts and the other rejects is a bug
-the user meets as "it worked yesterday".
+- **The configuration is resolved per call**, from the session's own working directory — never
+  once at mount time. One harness process serves many repositories, and a kitchen belongs to
+  a repository.
+- **Registration failures are silent.** A schema the registry refuses leaves the process
+  running with no tool and no error. `debug: true` in `cordis.patch.yml` is how that becomes
+  visible, and it must keep reporting each registration.
+- **The output schema names `additionalProperties` explicitly.** A raw `{type: 'object'}` is
+  refused as `JsonSchemaError`, which is the silent case above.
+- **A refusal is its own answer.** Relay that was not delivered, a merge at an unreviewed
+  HEAD, a station the kitchen does not run: each reports why instead of doing something
+  adjacent. When a new failure mode appears, give it its own message and a test rather than
+  widening a `catch`.
 
 ## Changing the harness integration
 
-The ACP surface is documented in `acp.py`'s module docstring, including which methods
-dkitchen relies on and why. When a DeepSeek Harness upgrade breaks something, the failure is
-meant to be one of:
+The plugin mounts through `ctx.agents`, `ctx.sessions`, `ctx.jobs`, `ctx.subprocess`,
+`ctx.tools`, `ctx.approval`, `ctx.workspaceRegistry`, and `ctx.sessionTitle`, all named in
+`inject` in `index.js`. A harness upgrade that changes one of those surfaces shows up as a
+tool that disappears or a call that throws — check `inject` first, then `debug` output.
 
-- `AcpUnavailable` — the process is gone; the broker reconnects and resumes sessions;
-- `SessionBusy` — another process owns the session (typically the GUI);
-- `Unreadable` from `logs.py` — a session log in a newer format, reported rather than guessed.
-
-Keep those three distinct. A new failure mode should get its own class and a test, not a
-broader `except`.
+Two deliberate behaviours are documented in `src/dkitchen-node/README.md` and must survive a
+refactor: `[approval]` answers by rule and defers otherwise, and a background job's
+settlement arrives as a session notice rather than through polling.

@@ -13,14 +13,14 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/dkitchen/"><img src="https://img.shields.io/pypi/v/dkitchen" alt="PyPI"></a>
-  <a href="https://pypi.org/project/dkitchen/"><img src="https://img.shields.io/pypi/pyversions/dkitchen" alt="Python"></a>
   <a href="https://github.com/songmingjun3/dkitchen/actions/workflows/tests.yml"><img src="https://github.com/songmingjun3/dkitchen/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
   <a href="https://github.com/songmingjun3/dkitchen/blob/main/LICENSE"><img src="https://img.shields.io/github/license/917Dhj/dkitchen" alt="License"></a>
   <a href="https://x.com/dahuoji09"><img src="https://img.shields.io/badge/follow-%40dahuoji09-000000?logo=x" alt="X: @dahuoji09"></a>
 </p>
 
-dkitchen is the multi-agent workflow I use every day to run my research repo. It gives a set of **DeepSeek Harness** sessions fixed stations, a shared way to hand off work through GitHub issues, clear rules for when to stop and ask you, and the tools that tie it together. You keep the decisions only you can make: what to research, what to try, what to spend.
+dkitchen is the multi-agent workflow I use every day to run my research repo. It gives a set of **Deep​Seek​ Harness** sessions fixed stations, a shared way to hand off work through GitHub issues, clear rules for when to stop and ask you, and the tools that tie it together. You keep the decisions only you can make: what to research, what to try, what to spend.
+
+It ships as a Deep​Seek​ Harness plugin. The tools are registered inside the harness process itself, so installing the bundle is the whole installation: no package to install, no daemon to start, and no second profile to boot.
 
 ## 🍽️ Why a kitchen
 
@@ -41,16 +41,15 @@ dkitchen sets up your agents the same way. You are the head chef.
 | Station | In a kitchen | What it does | Runs on |
 | --- | --- | --- | --- |
 | 👑 **You** | Head chef | Choose the direction, approve designs and budgets, decide what the results mean for your paper. | You |
-| 🤖 **Orchestrator** | Sous chef at the pass | Schedules tickets, GPUs, and concurrency. Relays messages, reviews and merges PRs, reports facts to you. | A DeepSeek Harness session, on the strongest model you have |
-| 🤔 **Designer** | Recipe developer | Writes tickets, designs methods and every piece of text a model will see, interprets results. | A DeepSeek Harness session, on the strongest model |
-| 🔍 **Verifier** | Taster | Checks facts against code and data before money is spent. Reports what it found and never makes the call. | A DeepSeek Harness session, on a cheaper model |
-| 🔪 **Executors** | Line cooks | One fresh session per ticket, in its own worktree. Implements, runs, and reports on the ticket. | A DeepSeek Harness session per ticket |
+| 🤖 **Orchestrator** | Sous chef at the pass | Schedules tickets, GPUs, and concurrency. Relays messages, reviews and merges PRs, reports facts to you. | A Deep​Seek​ Harness session, on the strongest model you have |
+| 🤔 **Designer** | Recipe developer | Writes tickets, designs methods and every piece of text a model will see, interprets results. | A Deep​Seek​ Harness session, on the strongest model |
+| 🔍 **Verifier** | Taster | Checks facts against code and data before money is spent. Reports what it found and never makes the call. | A Deep​Seek​ Harness session, on a cheaper model |
+| 🔪 **Executors** | Line cooks | One fresh session per ticket, in its own worktree. Implements, runs, and reports on the ticket. | A Deep​Seek​ Harness session per ticket |
 
-**You choose the stations.** Not every repo needs all four: `.dkitchen.toml` lists the ones this kitchen runs, and the setup skill asks on the first run. Drop the designer and the orchestrator writes the tickets; drop the verifier and the orchestrator runs the checks. Changing your mind later is a command, not a rewrite:
+**You choose the stations.** Not every repo needs all four: `.dkitchen.toml` lists the ones this kitchen runs, and the setup skill asks on the first run. Drop the designer and the orchestrator writes the tickets; drop the verifier and the orchestrator runs the checks. Changing your mind later is one tool call, not a rewrite:
 
-```bash
-ding config enable designer
-ding config set models.verifier.model claude-sonnet-5
+```text
+dkitchen_config(action="set", key="kitchen.stations", value="orchestrator,executor,verifier")
 ```
 
 Each station also gets its own model route, so the orchestrator can run on your strongest model while the verifier runs cheaply — on one harness, one profile, one set of sign-ins.
@@ -62,7 +61,7 @@ Each station has written rules for what it owns, what it hands off, and when it 
 1. **You and the designer agree on what to do.** The designer writes it up as a GitHub issue: the goal, the exact steps, and the budget the work may spend.
 2. **The verifier checks the ticket's premises** against the code and data: field names, dataset ranges, call counts, cost estimates.
 3. **The orchestrator dispatches it** to a new executor session and picks free GPUs.
-4. **The executor works and reports on the ticket.** Every comment opens with the same four lines: status, who it is waiting on, the key numbers, and what happens next. Long jobs start with `ding launch`; when the job exits, `ding` wakes the executor so it can read the output and continue.
+4. **The executor works and reports on the ticket.** Every comment opens with the same four lines: status, who it is waiting on, the key numbers, and what happens next. Long jobs start with `dkitchen_launch`; when the job exits, the harness wakes the executor with a session notice so it can read the output and continue.
 5. **Results go to the designer** for interpretation. The orchestrator reviews the PR, merges it, and logs what it did and why.
 6. **You read a short report** and make the next call.
 
@@ -79,7 +78,7 @@ Agents propose on these and wait. An approval only counts when it is in your own
 
 Everything else the kitchen handles on its own, by one rule: **if anyone would do it the same way, the agents do it. If the choice changes the results, the cost, or the direction, they stop and wait for you.**
 
-This is what lets you walk away. While you are in class, asleep, or reading papers, an issue watcher wakes the orchestrator when an executor finishes a stage, gets stuck, or goes quiet; when you leave a comment; or when a PR opens. The orchestrator moves forward what is already approved and leaves a list of decisions for when you are back.
+This is what lets you walk away. While you are in class, asleep, or reading papers, `dkitchen_watch` wakes the orchestrator when an executor finishes a stage, gets stuck, or goes quiet; when you leave a comment; or when a PR opens. The orchestrator moves forward what is already approved and leaves a list of decisions for when you are back.
 
 ## ⚖️ One pool of resources
 
@@ -92,73 +91,59 @@ A research repo has more resources than any single agent sees: GPUs on several s
 
 ## 🧰 The tools
 
-### 🛎️ `ding`, the bell
+### 🛎️ The `dkitchen_*` tools
 
-`ding` starts DeepSeek Harness sessions, passes messages between them, and wakes a session when its long job ends. Every session it drives is a real harness session: visible in the DeepSeek Harness GUI, persisted by the harness, readable after a restart.
+Installing the bundle gives every session the kitchen's commands as tools. They create harness sessions, pass messages between them, and wake a session when its long job ends. Every session they drive is a real harness session: visible in the Deep​Seek​ Harness window, persisted by the harness, readable after a restart.
 
-```bash
-ding new --cwd . --issue 42 --name 'Ablation' --station executor --message-file brief.md   # start a session for #42; prints its id
-ding board                                            # who is working on what, in this repo
-ding send '#42' --from orchestrator --message-file note.md
-ding launch train -- python train.py                  # run it in the background, wake me when it exits
-ding logs train                                       # that job's latest output
+```text
+dkitchen_new_session(name="Ablation", station="executor", issue=42, message="…")   # start a session for #42
+dkitchen_board()                                          # who is working on what, in this repo
+dkitchen_send(target="#42", sender="orchestrator", message="GPU 5 is free")
+dkitchen_launch(name="train", command=["python", "train.py"])   # run it in the background, wake me when it exits
+dkitchen_logs(job="train: …")                             # that job's latest output
 ```
 
-You can address a session by its id, its name, or a GitHub issue such as `'#42'`; `ding` finds the session that owns that ticket. On Linux, `ding board` also lists long-running processes that were started without `ding`, so you can spot jobs nobody will be woken for.
+You can address a session by its id, its name, or a GitHub issue such as `#42`; dkitchen finds the session that owns that ticket. `dkitchen_board` lists every session it opened in this repository, whatever the harness is currently showing.
 
-`ding` drives the harness over the Agent Client Protocol, keeping one long-lived connection and one message queue per session. Inside the harness, the `dsh-dkitchen` plugin exposes the same commands as MCP tools, so a session can run the kitchen without a terminal. The full guide is in [docs/ding.md](https://github.com/songmingjun3/dkitchen/blob/main/docs/ding.md).
+Because the tools live inside the harness, a session runs the kitchen without a terminal, and nothing has to be kept running beside it.
 
 ### 📋 The kitchen's routines
 
-The stations' everyday steps are `ding` commands too, so they run the same careful way every time:
+The stations' everyday steps are tools too, so they run the same careful way every time:
 
-- `ding relay` sends a message to a ticket's executor, and records it on the ticket only once delivery is confirmed.
-- `ding merge` merges a PR only at the HEAD that was reviewed, and only once the ticket's executor is waiting on the orchestrator to merge it.
-- `ding watch` waits in the orchestrator's background and wakes it when a ticket needs attention.
-- `ding log` keeps the orchestrator's log of what it did while you were away.
-- `ding check-refs` checks every file, line, and digest the verifier cites.
+- `dkitchen_relay` sends a message to a ticket's executor, and records it on the ticket only once delivery is confirmed.
+- `dkitchen_merge` merges a PR only at the HEAD that was reviewed, and only once the ticket's executor is waiting on the orchestrator to merge it.
+- `dkitchen_watch` reports one batch of GitHub activity the orchestrator must handle, and ends so it can be called again.
+- `dkitchen_log` keeps the orchestrator's log of what it did while you were away.
+- `dkitchen_check_refs` checks every file, line, and digest the verifier cites.
 
 ### 📜 The house rules
 
-The rules every station follows live in [src/dkitchen/kitchen/](https://github.com/songmingjun3/dkitchen/blob/main/src/dkitchen/kitchen/README.md): who owns what, how tickets are written, when to stop and ask, and optional modules for run budgets, model prompts, registered artifacts, and unattended work.
+The rules every station follows live in [src/dkitchen-node/kitchen/](https://github.com/songmingjun3/dkitchen/blob/main/src/dkitchen-node/kitchen/README.md): who owns what, how tickets are written, when to stop and ask, and optional modules for run budgets, model prompts, registered artifacts, and unattended work.
 
 ## 🚀 Get started
 
 ### Requirements
 
-- **DeepSeek Harness**, with a provider you can already run. `ding` finds the desktop installation on Windows by itself; elsewhere put `dsh` on `PATH`, or set `DKITCHEN_DSH_BIN`.
-- **Python 3.10 or later** — on Windows, macOS, or Linux.
-- **A GitHub repo and the `gh` CLI**, logged in.
-- `tmux` on Linux/macOS, if you want `ding launch` to keep jobs in a pane. On Windows, jobs run as detached processes instead, with `ding logs` and `ding stop`.
+- **Deep​Seek​ Harness**, with a provider you can already run. The plugin needs a harness that offers the `tools`, `agents`, `sessions`, `jobs`, and `approval` services — any current release does.
+- **A GitHub repo and the `gh` CLI**, logged in. Only the ticket tools need `gh`; everything else works without it.
+- Nothing else. There is no interpreter to install: the bundle is plain JavaScript, and the harness runs it in its own process.
 
-### 1. Install `ding`
+### 1. Install the bundle
 
-```bash
-python -m pip install dkitchen
+In the harness, open **Plugins → Discover**, add the index
+
+```text
+https://raw.githubusercontent.com/songmingjun3/dkitchen/main/docs/market/index.json
 ```
 
-(`pipx install dkitchen` instead, if this machine keeps standalone tools apart from an
-interpreter. Either way, remember which interpreter it went into: `ding mcp-serve` runs under
-that one.)
+and install `dkitchen`. Or install a local checkout directly: **Plugins → install bundle**, pointed at `src/dkitchen-node/`. The new tools appear in every session once the harness has loaded the bundle.
 
-### 2. Make it part of the harness
+The first start installs the setup skill into your machine-wide skill root as well, so `/setup-dkitchen` is available in every project, not just this checkout.
 
-```bash
-ding plugin install    # adds the dsh-dkitchen bundle to your desktop profile
-```
+### 2. Set up your kitchen
 
-Restart the harness. Its **Plugins** page now lists `dkitchen`, and every session can call
-`mcp__dkitchen__new_session`, `mcp__dkitchen__board`, `mcp__dkitchen__launch`, and the rest
-— the same commands as below, without leaving the conversation. The bundle is declarative:
-it inserts the harness's own MCP client pointed at `ding mcp-serve`.
-
-### 3. Write the skill and set up your kitchen
-
-```bash
-ding skill install     # the setup skill, into .agents/skills/setup-dkitchen/
-```
-
-In a DeepSeek Harness session inside your repo, run:
+In a Deep​Seek​ Harness session inside your repo, run:
 
 ```text
 /setup-dkitchen
@@ -175,10 +160,13 @@ They stop for anything that changes direction, results, or spending, and approva
 The rules were written for computational research, and most of them carry over to any repo with long-running jobs. The setup skill adapts them to your repo.
 
 **Does it work on Windows?**
-Yes. Sessions, messaging, tickets, and the setup skill are identical; `ding launch` swaps tmux for a detached process, and the one Linux-only extra — the list of unwrapped jobs on the board — is simply absent.
+Yes — identically. The old CLI needed tmux on Linux and a detached process on Windows; the plugin uses the harness's own job registry on both, so there is nothing platform-specific left to know.
 
 **Do I need more than one agent product?**
-No. Every station is a DeepSeek Harness session, and one harness process serves all of them. Different stations can still run different models.
+No. Every station is a Deep​Seek​ Harness session, and one harness process serves all of them. Different stations can still run different models.
+
+**Does it need Python?**
+No. Earlier versions shipped a Python CLI that drove sessions over the Agent Client Protocol through a broker and an MCP server. The plugin does the same work in-process, and that runtime is gone.
 
 **Isn't this too much process for a small project?**
 Start with the orchestrator and executors — `[kitchen] stations = ["orchestrator", "executor"]` — then add the designer and verifier when you want them.
