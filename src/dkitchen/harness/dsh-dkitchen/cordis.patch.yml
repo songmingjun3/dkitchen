@@ -3,6 +3,13 @@
 # `dsh-mcp-client` ships with the harness, so this bundle declares no dependencies: it
 # only inserts one row naming the client and the command that speaks MCP.
 #
+# `command` reads `DKITCHEN_DING` first. The harness starts this subprocess from an
+# environment it scrubs, so a `ding` installed into a pipx or venv bin directory is not
+# always on that PATH; naming the executable in the environment is the supported way to
+# point at it, and the bare name stays the default because that is what a normal install
+# on PATH resolves to. Spawning a nonexistent command fails at negotiation time, and with
+# `failOnStartupError: false` the only symptom is tools that never appear.
+#
 # `failOnStartupError: false` is deliberate. When `ding` is not installed, or a session
 # cannot reach the broker, the rest of the harness must still start: the dkitchen tools
 # then report the problem on call instead of taking the whole profile down. `ding plugin
@@ -14,7 +21,7 @@
       config:
         serverName: dkitchen
         transport: stdio
-        command: ding
+        command: !!js process.env.DKITCHEN_DING || 'ding'
         args: ['mcp-serve']
         toolCallTimeoutMs: 180000
         failOnStartupError: false

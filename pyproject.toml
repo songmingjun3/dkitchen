@@ -45,7 +45,8 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 dkitchen = ["skills/**/*.md", "skills/**/*.py", "kitchen/**/*.md",
-            "harness/**/*.json", "harness/**/*.yml", "harness/**/*.svg", "harness/**/*.md"]
+            "harness/**/*.json", "harness/**/*.yml", "harness/**/*.svg", "harness/**/*.md",
+            "harness/**/*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

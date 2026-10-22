@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
+import sys
 
 import pytest
 
@@ -48,14 +49,48 @@ def test_the_patch_inserts_the_shipped_mcp_client():
     assert SHIPPED_CLIENT in text
     assert "serverName: dkitchen" in text
     assert "transport: stdio" in text
-    # The command is `ding mcp-serve`: the MCP server this package provides.
-    assert re.search(r"command:\s*ding\b", text)
     assert re.search(r"args:\s*\[\s*['\"]mcp-serve['\"]\s*\]", text)
+
+
+def test_the_patch_lets_the_environment_name_the_ding_executable():
+    """The harness scrubs the environment, so a pipx `ding` may not be on that PATH.
+
+    `DKITCHEN_DING` is how a user points at one, and the bare name stays the default.
+    """
+    text = patch()
+    assert re.search(r"command:\s*!!js\s+process\.env\.DKITCHEN_DING\s*\|\|\s*'ding'", text)
 
 
 def test_the_patch_does_not_stop_the_harness_when_ding_is_missing():
     """A missing `ding` must not take the whole profile down with it."""
     assert "failOnStartupError: false" in patch()
+
+
+def test_the_bundle_ships_a_client_half_for_its_page():
+    """The Plugins page shows a section only for a bundle whose client half registers one."""
+    data = manifest()
+    exports = data["exports"]
+    assert exports["./client"] == "./client.js"
+    client = data["dsh"]["client"]
+    assert client["platform"] == "web"
+    assert "@deepseek-ai/dsh-client-ui-plugin-manager" in client["inject"]
+    assert (BUNDLE / "client.js").is_file()
+    assert (BUNDLE / "index.js").is_file()
+
+
+def test_the_client_half_registers_into_the_detail_section_slot():
+    """`plugins.bundle.config` is a settings form; a read-only report belongs in a section."""
+    source = (BUNDLE / "client.js").read_text(encoding="utf-8")
+    assert "ctx.slots.inject('plugins.detail.section'" in source
+    assert "ctx.slots.inject('plugins.bundle.config'" not in source
+    assert "subject.kind !== 'bundle'" in source
+
+
+def test_the_manifest_files_list_covers_the_client_half():
+    """`files` is what a packed bundle keeps; a missing entry silently drops a module."""
+    files = manifest()["files"]
+    assert "index.js" in files
+    assert "client.js" in files
 
 
 def test_every_locale_has_a_title_and_a_description():
@@ -284,3 +319,122 @@ def test_installed_profiles_reads_the_profile_manifests(tmp_path, monkeypatch):
     (tmp_path / "profiles" / "other" / "package.json").write_text(
         json.dumps({"dependencies": {}}), encoding="utf-8")
     assert plugin.installed_profiles() == ["probe"]
+
+
+def test_package_data_ships_every_bundle_file_the_harness_loads():
+    """`package-data` is the wheel's allowlist: a `.js` left out ships a bundle that cannot run.
+
+    This is a regression test: the client half was added to the bundle after the pattern
+    list was written, so the wheel carried a manifest that named a `client.js` the install
+    did not contain.
+    """
+    pyproject = (BUNDLE.parents[3] / "pyproject.toml").read_text(encoding="utf-8")
+    lines = pyproject[pyproject.index("[tool.setuptools.package-data]"):].splitlines()
+    # The values start on the line that assigns `dkitchen = [...]` and end at the first
+    # line whose last character closes that list.
+    body = []
+    started = False
+    for line in lines:
+        if line.lstrip().startswith("dkitchen"):
+            started = True
+        if started:
+            body.append(line)
+            if line.rstrip().endswith("]"):
+                break
+    patterns = re.findall(r'"([^"]+)"', "\n".join(body))
+    assert patterns, "could not read the package-data patterns"
+    for name in ("index.js", "client.js", "cordis.patch.yml", "package.json", "icon.svg",
+                 "locale/en.json"):
+        suffix = name.rsplit(".", 1)[-1]
+        covered = any(pattern.endswith(f"*.{suffix}") or pattern.endswith(name)
+                      for pattern in patterns)
+        assert covered, f"package-data has no pattern covering {name}"
+
+
+def test_an_unbooted_desktop_profile_gets_a_sentence_not_a_stack_trace(monkeypatch):
+    """The harness's own words assume the reader knows what "initialize its profile" means."""
+    class Failed:
+        returncode = 1
+        stdout = ""
+        stderr = ("Error: Open DeepSeek Harness Desktop once to initialize its profile, then "
+                  "fully quit it before running dsh plugin --profile desktop.")
+
+    monkeypatch.setattr(plugin.subprocess, "run", lambda command, **kw: Failed())
+    with pytest.raises(ValueError) as caught:
+        plugin.install_into("desktop")
+    message = str(caught.value)
+    assert "start DeepSeek Harness once" in message
+    # The harness's own text stays, so the reader can match it against other reports.
+    assert "initialize its profile" in message
+
+
+def test_an_unrelated_launcher_failure_is_passed_through_unchanged():
+    assert plugin._explain_launcher_error("ERR_PNPM_FETCH_404") is None
+
+
+def test_check_calls_the_manifest_a_declaration_not_an_installation(monkeypatch, capsys):
+    """Reading `dependencies` proves a declaration; the harness reports load failures itself."""
+    monkeypatch.setattr(plugin, "installed_profiles", lambda: ["desktop"])
+    plugin.main(_Args("check"), None)
+    out = capsys.readouterr().out
+    assert "declared in profile: desktop" in out
+    assert "installed in profile" not in out
+
+
+class _Args:
+    def __init__(self, action, **rest):
+        self.plugin_action = action
+        self.__dict__.update(rest)
+
+
+def test_status_is_json_the_configuration_page_can_render(monkeypatch, capsys):
+    monkeypatch.setattr(plugin, "installed_profiles", lambda: ["desktop"])
+    monkeypatch.setattr(plugin.shutil, "which", lambda name: "/usr/bin/ding"
+                        if name == "ding" else None)
+    assert plugin.main(_Args("status"), None) == 0
+    payload = json.loads(capsys.readouterr().out)
+    for key in ("available", "ding", "python", "kitchen_profile", "kitchen_exists",
+                "missing_routes", "installed_profiles", "checks"):
+        assert key in payload, f"{key} is missing from the status document"
+    assert payload["available"] is True
+    assert payload["ding"] == "/usr/bin/ding"
+    assert payload["installed_profiles"] == ["desktop"]
+    assert all({"name", "ok", "detail"} <= set(row) for row in payload["checks"])
+
+
+def test_check_names_the_interpreter_the_mcp_server_will_use(monkeypatch):
+    rows = dict((name, (ok, detail)) for name, ok, detail in plugin.check())
+    ok, detail = rows["python for the MCP server"]
+    assert ok is True
+    assert sys.executable in detail
+
+
+def test_a_ding_from_another_environment_is_named(monkeypatch):
+    """A pipx `ding` beside a different interpreter is what `DKITCHEN_DING` exists for."""
+    monkeypatch.setattr(plugin, "_ding_on_path", lambda: "/elsewhere/bin/ding")
+    ok, detail = dict((name, (ok, detail))
+                      for name, ok, detail in plugin.check())["python for the MCP server"]
+    assert ok is True
+    assert "DKITCHEN_DING" in detail
+
+
+@pytest.mark.parametrize("ding, python", [
+    # Windows keeps the interpreter at the root and console scripts in Scripts/ below it.
+    (r"D:\env\Scripts\ding.EXE", r"D:\env\python.exe"),
+    # POSIX keeps both in bin/.
+    ("/home/u/.venvs/k/bin/ding", "/home/u/.venvs/k/bin/python"),
+])
+def test_a_ding_beside_its_own_interpreter_is_not_reported_as_odd(ding, python):
+    assert plugin._same_environment(ding, python) is True
+
+
+@pytest.mark.parametrize("ding, python", [
+    ("/other/venv/bin/ding", "/home/u/.venvs/k/bin/python"),
+    (r"C:\other\Scripts\ding.exe", r"D:\env\python.exe"),
+])
+def test_a_ding_from_another_environment_is_distinguishable(ding, python):
+    assert plugin._same_environment(ding, python) is False
+
+
+def test_no_ding_on_path_is_not_called_a_mismatch():
+    assert plugin._same_environment(None, sys.executable) is False

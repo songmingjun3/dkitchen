@@ -22,8 +22,8 @@ jobs:
       - run: python -m pip install -e '.[dev]' build twine
       - run: python -m pytest
       - run: python -m build
-      - name: Check the wheel carries the setup skill and its kitchen templates
-        run: python -c "import zipfile,glob,sys; w=glob.glob('dist/*.whl')[0]; names=zipfile.ZipFile(w).namelist(); missing=[p for p in ('skills/setup-dkitchen/SKILL.md','kitchen/core/roles.md','kitchen/modules/unattended.md') if not any(p in n for n in names)]; sys.exit(0 if not missing else 'the wheel is missing: '+', '.join(missing))"
+      - name: Check the wheel carries the setup skill, its kitchen templates, and the plugin bundle
+        run: python -c "import zipfile,glob,sys; w=glob.glob('dist/*.whl')[0]; names=zipfile.ZipFile(w).namelist(); missing=[p for p in ('skills/setup-dkitchen/SKILL.md','kitchen/core/roles.md','kitchen/modules/unattended.md','harness/dsh-dkitchen/package.json','harness/dsh-dkitchen/cordis.patch.yml','harness/dsh-dkitchen/client.js','harness/dsh-dkitchen/index.js') if not any(p in n for n in names)]; sys.exit(0 if not missing else 'the wheel is missing: '+', '.join(missing))"
       - run: python -m twine check --strict dist/*
       - uses: actions/upload-artifact@v7
         with:
@@ -44,3 +44,45 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  market:
+    # The harness's Plugins > Discover tab reads docs/market/index.json, and the versions it
+    # lists must name a commit that is already pushed: the install spec is a pinned
+    # `git+https://...#<commit>` clone, so an index generated before the tag lands would
+    # offer an install nobody can fetch. That is why this runs after the tag exists rather
+    # than in `build`.
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Regenerate the plugin market index for this tag
+        run: |
+          # The tag's own commit is what a Discover install clones, so it is passed
+          # explicitly instead of letting the generator read `main`'s HEAD.
+          tag_commit=$(git rev-parse "$GITHUB_REF_NAME^{commit}")
+          published=$(git show -s --format=%ct "$tag_commit")
+          version=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          python -m dkitchen.ding market index \
+            --commit "$tag_commit" --published "$published" --version "$version"
+          python -m dkitchen.ding market index --check
+      - name: Commit the index
+        run: |
+          if git diff --quiet -- docs/market/index.json; then
+            echo "the index already lists $GITHUB_REF_NAME"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/market/index.json
+          git commit -m "market: list $GITHUB_REF_NAME in the plugin market index"
+          git push origin main
+

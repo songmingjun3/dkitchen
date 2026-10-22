@@ -62,6 +62,14 @@ ROUTE_BUNDLES = (
 #: A route-only profile cannot serve sessions without it.
 ACP_BUNDLE = "@deepseek-ai/dsh-acp-app"
 
+#: What the harness says when the desktop profile has never been booted by its own app.
+#:
+#: `dsh plugin --profile desktop` refuses until the Electron application has written that
+#: profile once, and the sentence it prints assumes the user knows what "initialized" means
+#: here. Install translates it instead of echoing it, because the fix is a GUI step no
+#: command can perform on their behalf.
+DESKTOP_NOT_INITIALIZED = "Open DeepSeek Harness Desktop once to initialize its profile"
+
 
 def bundle_dir() -> Path:
     """The bundle directory that ships inside the installed `dkitchen` package."""
@@ -70,6 +78,25 @@ def bundle_dir() -> Path:
         return beside_package
     raise ValueError(f"cannot find the {BUNDLE_NAME} bundle inside the installed package; "
                      "reinstall dkitchen")
+
+
+def _same_environment(ding_path: str | None, python_path: str) -> bool:
+    """Whether a `ding` lives in the interpreter's own environment.
+
+    An environment keeps its interpreter at the root on Windows and its console scripts in
+    `Scripts/` below it; on POSIX both sit in `bin/`. So equality of the immediate parent is
+    not the test: the script's directory, or the one above it, is.
+    """
+    if not ding_path:
+        return False
+    script = Path(ding_path).resolve().parent
+    interpreter = Path(python_path).resolve().parent
+    return interpreter in (script, script.parent)
+
+
+def _ding_on_path() -> str | None:
+    """The `ding` a scrubbed environment would resolve, if any."""
+    return shutil.which("ding")
 
 
 def check() -> list[tuple[str, bool, str]]:
@@ -100,6 +127,17 @@ def check() -> list[tuple[str, bool, str]]:
     except OSError as error:
         rows.append(("state root", False, f"{root}: {error}"))
 
+    # The MCP server is started as `[sys.executable, "-m", "dkitchen.ding"]`, so the
+    # interpreter running this check is the one the harness will use. A `ding` on PATH that
+    # was installed into a different environment is worth naming, because `DKITCHEN_DING`
+    # is what tells the bundle to use it.
+    on_path = _ding_on_path()
+    detail = f"interpreter {sys.executable}"
+    if on_path and not _same_environment(on_path, sys.executable):
+        detail += (f"; `ding` on PATH is {on_path}, set DKITCHEN_DING to it if the harness "
+                   "must use that one")
+    rows.append(("python for the MCP server", True, detail))
+
     # `gh` only limits the ticket tools, so its absence is a warning, not a blocker.
     gh = shutil.which("gh")
     rows.append(("gh (ticket tools)", True,
@@ -120,6 +158,28 @@ def check() -> list[tuple[str, bool, str]]:
     return rows
 
 
+def status() -> dict:
+    """The same facts as `check()`, in the shape the plugin's configuration page reads.
+
+    `available` is false when this process cannot even locate a `ding` to run: the browser
+    half renders what it gets, so a machine without dkitchen must come back as one JSON
+    document rather than as a failure to produce one.
+    """
+    rows = [{"name": name, "ok": ok, "detail": detail} for name, ok, detail in check()]
+    return {
+        "available": True,
+        "ding": _ding_on_path(),
+        "python": sys.executable,
+        "kitchen_profile": KITCHEN_PROFILE,
+        "kitchen_dir": str(paths.profile_dir(KITCHEN_PROFILE)),
+        "kitchen_exists": (paths.profile_dir(KITCHEN_PROFILE) / "package.json").is_file(),
+        "missing_routes": routes_present(KITCHEN_PROFILE),
+        "bundles": list(ROUTE_BUNDLES),
+        "installed_profiles": installed_profiles(),
+        "checks": rows,
+    }
+
+
 def _plugin_manager_hint() -> str:
     return ("Install it from the harness: open the Web UI's Plugins page and use "
             f"'install bundle' with this directory, or ask a Full-access session to call "
@@ -127,7 +187,12 @@ def _plugin_manager_hint() -> str:
 
 
 def installed_profiles() -> list[str]:
-    """Every profile that already depends on the bundle."""
+    """Every profile whose manifest already declares this bundle.
+
+    This reads `dependencies` only, so it proves a declaration, not a successful load: a
+    profile can declare a package whose files are unreadable, and the harness reports that
+    on its own page. `check` therefore words it as "declared in profile".
+    """
     root = paths.dsh_home() / "profiles"
     if not root.is_dir():
         return []
@@ -143,6 +208,18 @@ def installed_profiles() -> list[str]:
         if BUNDLE_NAME in (data.get("dependencies") or {}):
             found.append(profile.name)
     return found
+
+
+def _explain_launcher_error(detail: str) -> str | None:
+    """A human sentence for a launcher failure whose own words assume too much.
+
+    Returns None when the failure is one we have nothing useful to add to, so the caller
+    keeps the harness's own text instead of a guess.
+    """
+    if DESKTOP_NOT_INITIALIZED in detail:
+        return ("The desktop application has not written its profile yet: start DeepSeek "
+                "Harness once, close it completely, then rerun this command.")
+    return None
 
 
 def _launcher_add(profile: str, spec: str) -> None:
@@ -171,7 +248,9 @@ def _launcher_add(profile: str, spec: str) -> None:
         raise ValueError(f"cannot run the harness launcher: {error}") from error
     if result.returncode:
         detail = (result.stderr or result.stdout).strip()
-        raise ValueError(detail or f"dsh plugin add {spec} exited {result.returncode}")
+        explained = _explain_launcher_error(detail)
+        message = f"{explained}\n{detail}" if explained else detail
+        raise ValueError(message or f"dsh plugin add {spec} exited {result.returncode}")
 
 
 def install_into(profile: str) -> None:
@@ -285,8 +364,13 @@ def main(args, config_) -> int:
         for name, ok, detail in check():
             print(f"{'ok  ' if ok else 'FAIL'} {name}: {detail}")
         for profile in installed_profiles():
-            print(f"ok   installed in profile: {profile}")
+            # Declaring the dependency is what this reads; a profile can still fail to load
+            # it, which the harness reports on its own Plugins page.
+            print(f"ok   declared in profile: {profile}")
         return 0 if all(ok for _, ok, _ in check()) else 1
+    if action == "status":
+        print(json.dumps(status(), ensure_ascii=False, indent=2))
+        return 0
     if action == "install":
         return install(dry_run=getattr(args, "dry_run", False),
                        profile=getattr(args, "profile", None))

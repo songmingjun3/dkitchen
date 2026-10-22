@@ -1,0 +1,78 @@
+{
+  "format": 1,
+  "title": {
+    "en": "dkitchen",
+    "zh": "dkitchen 厨房"
+  },
+  "description": {
+    "en": "A kitchen of DeepSeek Harness sessions: stations, tickets, long jobs, and the bell that wakes them.",
+    "zh": "用 DeepSeek Harness 会话开一间厨房：安排岗位、分发票、跑长任务，再读回结果。"
+  },
+  "metadata": {
+    "categories": {
+      "workflow": {
+        "title": {
+          "en": "Workflow",
+          "zh": "工作流"
+        }
+      }
+    },
+    "labels": {
+      "official": {
+        "title": {
+          "en": "Official",
+          "zh": "官方"
+        }
+      }
+    }
+  },
+  "plugins": [
+    {
+      "name": "dsh-dkitchen",
+      "title": {
+        "en": "dkitchen",
+        "zh": "dkitchen 厨房"
+      },
+      "description": {
+        "en": "Call dkitchen's tools from any session: create stations, hand out tickets, launch long jobs, and read what came back.",
+        "zh": "在任何会话里调用 dkitchen 的工具：安排岗位、分发票、跑长任务，再读回结果。"
+      },
+      "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByb2xlPSJpbWciIGFyaWEtbGFiZWw9ImRraXRjaGVuIj4KICA8dGl0bGU+ZGtpdGNoZW48L3RpdGxlPgogIDxyZWN0IHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgcng9IjE0IiBmaWxsPSIjMWYyNDMwIi8+CiAgPHBhdGggZD0iTTE4IDQyaDI4YTE0IDE0IDAgMCAwLTI4IDB6IiBmaWxsPSIjZDlhNDQxIi8+CiAgPHBhdGggZD0iTTE4IDQyaDI4djRIMTh6IiBmaWxsPSIjOGE2YTJhIi8+CiAgPGNpcmNsZSBjeD0iMzIiIGN5PSIyMCIgcj0iMy41IiBmaWxsPSIjZjRlZmU2Ii8+CiAgPHBhdGggZD0iTTMyIDI0djYiIHN0cm9rZT0iI2Y0ZWZlNiIgc3Ryb2tlLXdpZHRoPSIyLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDxwYXRoIGQ9Ik0yNSA0N2gxNCIgc3Ryb2tlPSIjNWM4NmY4IiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K",
+      "author": "917Dhj",
+      "homepage": "https://github.com/917Dhj/dkitchen",
+      "repository": {
+        "url": "https://github.com/917Dhj/dkitchen",
+        "directory": "src/dkitchen/harness/dsh-dkitchen"
+      },
+      "metadata": {
+        "category": "workflow",
+        "keywords": [
+          "dsh-plugin",
+          "deepseek-harness",
+          "dkitchen",
+          "agent",
+          "orchestration",
+          "multi-agent"
+        ],
+        "labels": [
+          "official"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.5.0",
+          "publishTimestamp": 1792590982,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/917Dhj/dkitchen",
+            "commit": "4f9b1ff49f2c5fed430686a98d4cfa1bcb7d7b54",
+            "path": "src/dkitchen/harness/dsh-dkitchen"
+          },
+          "engines": {
+            "dsh": ">=0.2.0-rc.1 <0.3.0"
+          }
+        }
+      ]
+    }
+  ]
+}

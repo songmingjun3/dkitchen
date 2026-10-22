@@ -18,6 +18,7 @@ Every session it drives is a real DeepSeek Harness session: the harness creates 
 - [Wrap a command yourself: `run`](#wrap-a-command-yourself-run)
 - [Stations and models: `config`](#stations-and-models-config)
 - [Use dkitchen inside the harness: `plugin`](#use-dkitchen-inside-the-harness-plugin)
+- [Install from the page: the plugin market](#install-from-the-page-the-plugin-market)
 - [The harness profile: `harness init`](#the-harness-profile-harness-init)
 - [Kitchen commands](#kitchen-commands)
 - [Files `ding` keeps](#files-ding-keeps)
@@ -381,9 +382,9 @@ ding config set harness.profile lab
 ## Use dkitchen inside the harness: `plugin`
 
 The harness loads plugins as **bundles**: a package whose `package.json` points at a
-`cordis.patch.yml` that inserts rows into the profile's composition. dkitchen ships one,
-and it is purely declarative — it inserts the harness's own
-`@deepseek-ai/dsh-mcp-client` row pointed at `ding mcp-serve`:
+`cordis.patch.yml` that inserts rows into the profile's composition. dkitchen ships one.
+Its patch inserts the harness's own `@deepseek-ai/dsh-mcp-client` row pointed at `ding
+mcp-serve`:
 
 ```yaml
 - insert:
@@ -392,31 +393,48 @@ and it is purely declarative — it inserts the harness's own
       config:
         serverName: dkitchen
         transport: stdio
-        command: ding
+        command: !!js process.env.DKITCHEN_DING || 'ding'
         args: ['mcp-serve']
 ```
 
-Because the client ships with the harness, the bundle declares no dependencies and needs
-no JavaScript of its own. Once installed, the harness starts `ding mcp-serve` as a
-subprocess and registers its tools on the model's tool list:
+The `!!js` expression is why `DKITCHEN_DING` exists. The harness starts this subprocess from
+an environment it scrubs, so a `ding` installed by pipx or into a virtual environment is not
+always on that PATH; setting `DKITCHEN_DING` to its full path is how you point at one. The
+bare name stays the default, which is what an ordinary install on PATH resolves to.
+
+Because the client ships with the harness, the bundle declares no dependencies. Once
+installed, the harness starts `ding mcp-serve` as a subprocess and registers its tools on the
+model's tool list:
 
 ```bash
 ding plugin check                    # what the bundle needs, and what is missing
+ding plugin status                   # the same facts as JSON, for the bundle's page
 ding plugin install                  # check, then install into the `desktop` profile
 ding plugin install --profile lab    # a different profile
 ding plugin install --dry-run        # run the checks, change nothing
 ```
+
+`plugin install` does three things, in this order, so that one command is enough on a machine
+that has never run the harness:
+
+1. writes the `dkitchen` profile if it is missing, through `ding harness init`;
+2. adds the route bundles that profile needs (`dsh-wtq-pool`, `dsh-llm-agentrouter`,
+   `dsh-openai-codex-auth`, `dsh-our-free-model`), because each carries its provider routes
+   inside its own patch and a fresh machine has no configured profile to copy them from;
+3. installs the bundle into the profile you will open conversations in.
 
 Every tool is named `mcp__dkitchen__<name>`: `new_session`, `send`, `read`, `status`,
 `info`, `rename`, `board`, `approve`, `relay`, `merge`, `log`, `launch`, `logs`, and
 `stop`. They forward to the same CLI commands documented here, so a session created from
 the harness and one created from a terminal are the same kind of session.
 
-`plugin install` runs `dsh plugin --profile <name> add link:<bundle dir>`, which installs
-the package and appends it to the profile's `dsh.profile.bundles` — the same operation the
-harness's own plugin manager performs. It refuses to install when a prerequisite is
-missing, because a bundle that cannot reach `ding` produces a plugin whose every tool call
-fails. `gh` is a warning, not a refusal: only `relay`, `merge`, and `log` need it.
+Step 3 runs `dsh plugin --profile <name> add link:<bundle dir>`, which installs the package
+and appends it to the profile's `dsh.profile.bundles` — the same operation the harness's own
+plugin manager performs. It refuses to install when a prerequisite is missing, because a
+bundle that cannot reach `ding` produces a plugin whose every tool call fails. `gh` is a
+warning, not a refusal: only `relay`, `merge`, and `log` need it. On a machine whose desktop
+profile has never been booted, the harness's own refusal ("Open DeepSeek Harness Desktop
+once to initialize its profile") is reported with what to do about it.
 
 The bundle sets `failOnStartupError: false` on purpose. A missing `ding` then leaves the
 dkitchen tools unavailable instead of preventing the whole profile from starting.
@@ -426,7 +444,35 @@ Restart the harness after installing, or reload the profile where HMR is enabled
 composition cannot be dumped with `dsh --profile desktop --dump-config` after installing.
 The install itself lands — the dependency, the bundle entry, the `node_modules` link, and
 the lockfile entry — and the application's own plugin manager keeps them. Confirm the
-`dkitchen` row on the harness's **Plugins** page.
+`dkitchen` row on the harness's **Plugins** page, where the bundle also shows a section with
+the two commands the plugin cannot run for you.
+
+### Install from the page: the plugin market
+
+The harness Plugins page has a **Discover** tab that searches plugin market indexes. dkitchen
+publishes one, so the bundle can be found by name instead of pasted as a path:
+
+1. **Plugins** → **More** → switch on **Custom plugin markets** (the harness ships this
+   optional bundle off, and there is no official market: Discover lists only the indexes you
+   add).
+2. **Discover** → **Add index source**, and paste
+   `https://raw.githubusercontent.com/917Dhj/dkitchen/main/docs/market/index.json`.
+3. Search `dkitchen`, open the entry, and press **Install**.
+
+The index is format 1, the format `@deepseek-ai/dsh-plugin-market-index` validates. Each
+version names a pinned commit of this repository rather than a registry package, so an
+install clones that commit and takes the bundle from `src/dkitchen/harness/dsh-dkitchen`.
+Generate or check it with:
+
+```bash
+ding market index                      # rewrite docs/market/index.json for HEAD
+ding market index --check              # validate the committed file
+ding market index --commit <sha> --published <unix>   # what CI passes for a tag
+```
+
+Because the index describes a published commit, `ding plugin install` remains the way to
+install the working tree you are editing: the market entry cannot point at uncommitted files.
+
 
 ## The harness profile: `harness init`
 
@@ -455,7 +501,9 @@ These commands carry out the kitchen's routine steps, as the house rules in [src
 | `ding watch` | Orchestrator, in the background | Waits for GitHub activity the orchestrator must handle, prints it as one batch, and exits. See [While the user is away](../src/dkitchen/kitchen/modules/unattended.md). |
 | `ding check-refs draft.md` | Verifier | Checks every `` `file:line` `` in a draft comment (a name written right next to it must appear on that line) and every `sha256`, against `origin/main` or `--root DIR`. Exits 1 when something is wrong. |
 | `ding skill install` | Setup | Copies dkitchen's setup skill into `<repo>/.agents/skills/setup-dkitchen/`. |
-| `ding plugin install` | Setup | Checks this machine, then installs the harness plugin bundle into a profile. See [Use dkitchen inside the harness](#use-dkitchen-inside-the-harness-plugin). |
+| `ding plugin install` | Setup | Checks this machine, writes the kitchen profile, adds the route bundles, then installs the harness plugin bundle into a profile. See [Use dkitchen inside the harness](#use-dkitchen-inside-the-harness-plugin). |
+| `ding plugin status` | Setup, indirectly | The same facts as `check`, as JSON. The bundle's page in the harness reads it. |
+| `ding market index` | Release | Writes or validates the format-1 plugin market index the harness's Discover tab reads. See [Install from the page](#install-from-the-page-the-plugin-market). |
 | `ding mcp-serve` | Setup, indirectly | Serves dkitchen's tools over MCP on stdin/stdout. The plugin's `cordis.patch.yml` names it; you do not run it by hand. |
 
 **Before merging, `ding merge` reads the executor's latest status block.** The ticket is `--ticket N`. Without it, `ding` takes the one ticket mentioned in the PR body (as `#N` or a link) that has executor comments, and refuses when there are none or several. It prints that ticket's latest executor status block, and merges only when its second field (*Waiting on*) names the orchestrator. An executor that has since said it is still changing the PR, or that waits on nobody, blocks the merge, even if the review already passed. Use `--no-ticket` for a PR that belongs to no ticket. There is no override: when the executor cannot answer, the user merges by hand.

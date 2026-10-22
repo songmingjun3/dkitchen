@@ -1253,6 +1253,26 @@ def main(argv=None) -> int:
     plugin_install.add_argument("--dry-run", action="store_true",
                                 help="Run the checks and print what would happen")
     plugin_sub.add_parser("check", help="Report what the plugin needs and what is missing")
+    plugin_sub.add_parser("status",
+                          help="The same facts as JSON, for the plugin's configuration page")
+
+    market = commands.add_parser("market",
+                                 help="Generate or validate the DeepSeek Harness plugin market index")
+    market_sub = market.add_subparsers(dest="market_action", required=True)
+    market_index = market_sub.add_parser(
+        "index", help="Write the format-1 index the harness's Discover tab reads")
+    market_index.add_argument("--out", type=Path, default=Path("docs/market/index.json"),
+                              help="Where to write the index (default: docs/market/index.json)")
+    market_index.add_argument("--commit", help="Commit the versions install from "
+                                               "(default: HEAD)")
+    market_index.add_argument("--published", type=int,
+                              help="Unix seconds for this version's publish time "
+                                   "(default: the commit's own time)")
+    market_index.add_argument("--version", help="Package version (default: from pyproject.toml)")
+    market_index.add_argument("--url", help="URL the index will be served from, used to "
+                                            "resolve relative icons")
+    market_index.add_argument("--check", action="store_true",
+                              help="Validate the file at --out instead of writing it")
 
     sub = commands.add_parser("check-refs", help="Check file:line and sha256 references in a draft comment")
     sub.add_argument("draft", help="Draft comment file")
@@ -1355,6 +1375,9 @@ def main(argv=None) -> int:
         if args.action == "plugin":
             from dkitchen import plugin
             return plugin.main(args, settings_)
+        if args.action == "market":
+            from dkitchen import market
+            return market.main(args, settings_)
         if args.action == "check-refs":
             from dkitchen import refs
             return refs.check_refs(args)

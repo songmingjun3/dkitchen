@@ -2,5 +2,13 @@
   "meta": {
     "title": "dkitchen 厨房",
     "description": "用 DeepSeek Harness 会话开一间厨房：安排岗位、分发票、跑长任务，再读回结果。"
-  }
+  },
+  "labelBundle": "插件包",
+  "labelEnabled": "已启用",
+  "installed": "已安装",
+  "notInstalled": "未安装",
+  "yes": "开",
+  "no": "关",
+  "setupNote": "这个插件包只负责挂载 dkitchen 的工具。工具本身在 Python 包里，所以下面两条命令仍需你执行：",
+  "agentMessage": "dkitchen 插件包已安装。dkitchen 的工具在 Python 包里：先 `pipx install dkitchen`，再运行 `ding plugin install` 创建 kitchen profile 并补齐路由插件。"
 }

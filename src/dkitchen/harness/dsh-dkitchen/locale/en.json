@@ -2,5 +2,13 @@
   "meta": {
     "title": "dkitchen",
     "description": "Run a kitchen of DeepSeek Harness sessions: create stations, hand out tickets, launch long jobs, and read what came back."
-  }
+  },
+  "labelBundle": "Bundle",
+  "labelEnabled": "Enabled",
+  "installed": "Installed",
+  "notInstalled": "Not installed",
+  "yes": "On",
+  "no": "Off",
+  "setupNote": "The bundle only mounts dkitchen's tools. The Python package provides them, so these two commands are still yours to run:",
+  "agentMessage": "The dkitchen bundle is installed. dkitchen's tools live in the Python package: install it with `pipx install dkitchen`, then run `ding plugin install` to create the kitchen profile and add the route bundles."
 }
