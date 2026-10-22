@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/917Dhj/dkitchen/main/docs/assets/dkitchen.png" width="240" alt="两个像素风机器人厨师：大的那个摇服务铃，小的那个端着锅回应">
+  <img src="https://raw.githubusercontent.com/songmingjun3/dkitchen/main/docs/assets/dkitchen.png" width="240" alt="两个像素风机器人厨师：大的那个摇服务铃，小的那个端着锅回应">
 </p>
 
 <h1 align="center">dkitchen</h1>
 
 <p align="center">
-  <a href="https://github.com/917Dhj/dkitchen/blob/main/README.md">English</a> | <b>简体中文</b>
+  <a href="https://github.com/songmingjun3/dkitchen/blob/main/README.md">English</a> | <b>简体中文</b>
 </p>
 
 <p align="center">
@@ -15,8 +15,8 @@
 <p align="center">
   <a href="https://pypi.org/project/dkitchen/"><img src="https://img.shields.io/pypi/v/dkitchen" alt="PyPI"></a>
   <a href="https://pypi.org/project/dkitchen/"><img src="https://img.shields.io/pypi/pyversions/dkitchen" alt="Python"></a>
-  <a href="https://github.com/917Dhj/dkitchen/actions/workflows/tests.yml"><img src="https://github.com/917Dhj/dkitchen/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
-  <a href="https://github.com/917Dhj/dkitchen/blob/main/LICENSE"><img src="https://img.shields.io/github/license/917Dhj/dkitchen" alt="License"></a>
+  <a href="https://github.com/songmingjun3/dkitchen/actions/workflows/tests.yml"><img src="https://github.com/songmingjun3/dkitchen/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
+  <a href="https://github.com/songmingjun3/dkitchen/blob/main/LICENSE"><img src="https://img.shields.io/github/license/917Dhj/dkitchen" alt="License"></a>
   <a href="https://x.com/dahuoji09"><img src="https://img.shields.io/badge/follow-%40dahuoji09-000000?logo=x" alt="X: @dahuoji09"></a>
 </p>
 
@@ -35,7 +35,7 @@ dkitchen 就把你的 agent 摆成这个样子。你就是主厨。
 ## 🧑‍🍳 厨房里的人
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/917Dhj/dkitchen/main/docs/assets/kitchen-zh.gif" width="100%" alt="像素风厨房：你和总设计谈定方案，核查核对票，总编排摇铃叫起空闲 GPU 上的执行者，审查并合并 PR，最后把需要你决定的一件事端到你面前">
+  <img src="https://raw.githubusercontent.com/songmingjun3/dkitchen/main/docs/assets/kitchen-zh.gif" width="100%" alt="像素风厨房：你和总设计谈定方案，核查核对票，总编排摇铃叫起空闲 GPU 上的执行者，审查并合并 PR，最后把需要你决定的一件事端到你面前">
 </p>
 
 | 岗位 | 在后厨里 | 做什么 | 跑在哪 |

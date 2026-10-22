@@ -35,10 +35,10 @@ dev = ["pytest>=8"]
 ding = "dkitchen.ding:main"
 
 [project.urls]
-Homepage = "https://github.com/917Dhj/dkitchen"
-Documentation = "https://github.com/917Dhj/dkitchen/blob/main/docs/ding.md"
-Repository = "https://github.com/917Dhj/dkitchen"
-Issues = "https://github.com/917Dhj/dkitchen/issues"
+Homepage = "https://github.com/songmingjun3/dkitchen"
+Documentation = "https://github.com/songmingjun3/dkitchen/blob/main/docs/ding.md"
+Repository = "https://github.com/songmingjun3/dkitchen"
+Issues = "https://github.com/songmingjun3/dkitchen/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

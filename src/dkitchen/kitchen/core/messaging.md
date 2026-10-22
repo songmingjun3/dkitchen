@@ -1,6 +1,6 @@
 # Messaging sessions (ding)
 
-`ding` shows what sessions are doing, sends them messages, and starts new ones. Every one of them is a DeepSeek Harness session: the same conversation is visible in the harness GUI, and its history is persisted by the harness. Install it with `pipx install dkitchen`; the full guide is at https://github.com/917Dhj/dkitchen/blob/main/docs/ding.md.
+`ding` shows what sessions are doing, sends them messages, and starts new ones. Every one of them is a DeepSeek Harness session: the same conversation is visible in the harness GUI, and its history is persisted by the harness. Install it with `pipx install dkitchen`; the full guide is at https://github.com/songmingjun3/dkitchen/blob/main/docs/ding.md.
 
 ```bash
 ding new --cwd /path/worktree --issue 42 --name 'Ablation' --station executor --message-file /path/brief.md

@@ -39,9 +39,9 @@
       },
       "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByb2xlPSJpbWciIGFyaWEtbGFiZWw9ImRraXRjaGVuIj4KICA8dGl0bGU+ZGtpdGNoZW48L3RpdGxlPgogIDxyZWN0IHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgcng9IjE0IiBmaWxsPSIjMWYyNDMwIi8+CiAgPHBhdGggZD0iTTE4IDQyaDI4YTE0IDE0IDAgMCAwLTI4IDB6IiBmaWxsPSIjZDlhNDQxIi8+CiAgPHBhdGggZD0iTTE4IDQyaDI4djRIMTh6IiBmaWxsPSIjOGE2YTJhIi8+CiAgPGNpcmNsZSBjeD0iMzIiIGN5PSIyMCIgcj0iMy41IiBmaWxsPSIjZjRlZmU2Ii8+CiAgPHBhdGggZD0iTTMyIDI0djYiIHN0cm9rZT0iI2Y0ZWZlNiIgc3Ryb2tlLXdpZHRoPSIyLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDxwYXRoIGQ9Ik0yNSA0N2gxNCIgc3Ryb2tlPSIjNWM4NmY4IiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K",
       "author": "917Dhj",
-      "homepage": "https://github.com/917Dhj/dkitchen",
+      "homepage": "https://github.com/songmingjun3/dkitchen",
       "repository": {
-        "url": "https://github.com/917Dhj/dkitchen",
+        "url": "https://github.com/songmingjun3/dkitchen",
         "directory": "src/dkitchen/harness/dsh-dkitchen"
       },
       "metadata": {
@@ -61,11 +61,11 @@
       "versions": [
         {
           "version": "0.5.0",
-          "publishTimestamp": 1792590982,
+          "publishTimestamp": 1792630632,
           "source": {
             "type": "git",
-            "url": "https://github.com/917Dhj/dkitchen",
-            "commit": "4f9b1ff49f2c5fed430686a98d4cfa1bcb7d7b54",
+            "url": "https://github.com/songmingjun3/dkitchen",
+            "commit": "00619e9eec3f598ab28fb287eeaecf1773528895",
             "path": "src/dkitchen/harness/dsh-dkitchen"
           },
           "engines": {

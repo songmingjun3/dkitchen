@@ -15,7 +15,7 @@ This is a prompt-driven setup. Explore, present what you found, settle each sect
 - **Templates**: the `kitchen/` folder inside the installed `dkitchen` package, `../../kitchen/` from this skill's directory. Read [kitchen/README.md](../../kitchen/README.md) first: it maps each template to its installed path and defines the template markers, the station list, and the default vocabulary. The templates ship inside the package, so `render.py` finds them with no checkout; if it cannot, pass `--kitchen DIR`.
 - **Reference repo scripts**: [scripts/](scripts/) in this skill. Each starts with a comment listing what to adapt.
 - **Renderer**: [render.py](render.py) in this skill turns the templates into rule files for a chosen set of modules.
-- **`ding`**: `ding --help`, and the guide at https://github.com/917Dhj/dkitchen/blob/main/docs/ding.md, including every `.dkitchen.toml` key.
+- **`ding`**: `ding --help`, and the guide at https://github.com/songmingjun3/dkitchen/blob/main/docs/ding.md, including every `.dkitchen.toml` key.
 - **The harness**: `ding config models` lists the provider/model routes this machine can run, and `ding info` shows the route one session uses.
 
 ## 1. Explore

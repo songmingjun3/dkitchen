@@ -27,12 +27,17 @@ from pathlib import Path, PurePosixPath
 
 #: The index URL a user adds to Discover. Relative icon paths resolve against it, and it is
 #: the document the repository publishes, so the value is part of the deliverable.
-INDEX_URL = ("https://raw.githubusercontent.com/917Dhj/dkitchen/main/docs/market/index.json")
+#:
+#: This names the repository the commits are pushed to. A Discover entry installs a pinned
+#: `git+https://…#<commit>` clone, so an index whose URL differs from the push target offers
+#: an install nobody can fetch — the two must be changed together.
+INDEX_URL = ("https://raw.githubusercontent.com/songmingjun3/dkitchen/main"
+             "/docs/market/index.json")
 
 #: Where the bundle sits inside this repository, which is what a git source installs.
 BUNDLE_PATH = "src/dkitchen/harness/dsh-dkitchen"
 
-REPOSITORY_URL = "https://github.com/917Dhj/dkitchen"
+REPOSITORY_URL = "https://github.com/songmingjun3/dkitchen"
 
 #: The dsh range the bundle declares, restated so the index cannot drift from the manifest.
 DSH_RANGE = ">=0.2.0-rc.1 <0.3.0"

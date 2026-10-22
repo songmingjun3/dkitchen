@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/917Dhj/dkitchen/main/docs/assets/dkitchen.png" width="240" alt="Two pixel-art robot chefs: the big one rings a service bell, the small one answers with a pan">
+  <img src="https://raw.githubusercontent.com/songmingjun3/dkitchen/main/docs/assets/dkitchen.png" width="240" alt="Two pixel-art robot chefs: the big one rings a service bell, the small one answers with a pan">
 </p>
 
 <h1 align="center">dkitchen</h1>
 
 <p align="center">
-  <b>English</b> | <a href="https://github.com/917Dhj/dkitchen/blob/main/README.zh-CN.md">简体中文</a>
+  <b>English</b> | <a href="https://github.com/songmingjun3/dkitchen/blob/main/README.zh-CN.md">简体中文</a>
 </p>
 
 <p align="center">
@@ -15,8 +15,8 @@
 <p align="center">
   <a href="https://pypi.org/project/dkitchen/"><img src="https://img.shields.io/pypi/v/dkitchen" alt="PyPI"></a>
   <a href="https://pypi.org/project/dkitchen/"><img src="https://img.shields.io/pypi/pyversions/dkitchen" alt="Python"></a>
-  <a href="https://github.com/917Dhj/dkitchen/actions/workflows/tests.yml"><img src="https://github.com/917Dhj/dkitchen/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
-  <a href="https://github.com/917Dhj/dkitchen/blob/main/LICENSE"><img src="https://img.shields.io/github/license/917Dhj/dkitchen" alt="License"></a>
+  <a href="https://github.com/songmingjun3/dkitchen/actions/workflows/tests.yml"><img src="https://github.com/songmingjun3/dkitchen/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
+  <a href="https://github.com/songmingjun3/dkitchen/blob/main/LICENSE"><img src="https://img.shields.io/github/license/917Dhj/dkitchen" alt="License"></a>
   <a href="https://x.com/dahuoji09"><img src="https://img.shields.io/badge/follow-%40dahuoji09-000000?logo=x" alt="X: @dahuoji09"></a>
 </p>
 
@@ -35,7 +35,7 @@ dkitchen sets up your agents the same way. You are the head chef.
 ## 🧑‍🍳 The kitchen
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/917Dhj/dkitchen/main/docs/assets/kitchen.gif" width="100%" alt="A pixel-art kitchen: you talk a design through with the designer, the verifier checks the ticket, the orchestrator rings the bell to start an executor on free GPUs, reviews and merges a PR, and brings you one decision to approve">
+  <img src="https://raw.githubusercontent.com/songmingjun3/dkitchen/main/docs/assets/kitchen.gif" width="100%" alt="A pixel-art kitchen: you talk a design through with the designer, the verifier checks the ticket, the orchestrator rings the bell to start an executor on free GPUs, reviews and merges a PR, and brings you one decision to approve">
 </p>
 
 | Station | In a kitchen | What it does | Runs on |
@@ -106,7 +106,7 @@ ding logs train                                       # that job's latest output
 
 You can address a session by its id, its name, or a GitHub issue such as `'#42'`; `ding` finds the session that owns that ticket. On Linux, `ding board` also lists long-running processes that were started without `ding`, so you can spot jobs nobody will be woken for.
 
-`ding` drives the harness over the Agent Client Protocol, keeping one long-lived connection and one message queue per session. Inside the harness, the `dsh-dkitchen` plugin exposes the same commands as MCP tools, so a session can run the kitchen without a terminal. The full guide is in [docs/ding.md](https://github.com/917Dhj/dkitchen/blob/main/docs/ding.md).
+`ding` drives the harness over the Agent Client Protocol, keeping one long-lived connection and one message queue per session. Inside the harness, the `dsh-dkitchen` plugin exposes the same commands as MCP tools, so a session can run the kitchen without a terminal. The full guide is in [docs/ding.md](https://github.com/songmingjun3/dkitchen/blob/main/docs/ding.md).
 
 ### 📋 The kitchen's routines
 
@@ -120,7 +120,7 @@ The stations' everyday steps are `ding` commands too, so they run the same caref
 
 ### 📜 The house rules
 
-The rules every station follows live in [src/dkitchen/kitchen/](https://github.com/917Dhj/dkitchen/blob/main/src/dkitchen/kitchen/README.md): who owns what, how tickets are written, when to stop and ask, and optional modules for run budgets, model prompts, registered artifacts, and unattended work.
+The rules every station follows live in [src/dkitchen/kitchen/](https://github.com/songmingjun3/dkitchen/blob/main/src/dkitchen/kitchen/README.md): who owns what, how tickets are written, when to stop and ask, and optional modules for run budgets, model prompts, registered artifacts, and unattended work.
 
 ## 🚀 Get started
 
@@ -187,4 +187,4 @@ The Michelin kitchen metaphor comes from Lauren Tan, known online as [Poteto](ht
 
 ## License
 
-[MIT](https://github.com/917Dhj/dkitchen/blob/main/LICENSE)
+[MIT](https://github.com/songmingjun3/dkitchen/blob/main/LICENSE)
