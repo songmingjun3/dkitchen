@@ -26,7 +26,30 @@
 | `src/dkitchen/mcp.py` | The MCP server on stdio, which turns the CLI into tools a harness session can call |
 | `src/dkitchen/plugin.py` | Installing the `dsh-dkitchen` bundle through the harness's own launcher |
 | `src/dkitchen/market.py` | The format-1 plugin market index the harness's Discover tab reads |
-| `src/dkitchen/harness/dsh-dkitchen/` | The plugin bundle: a manifest, a `cordis.patch.yml`, a client page, locale files, and an icon |
+| `src/dkitchen/harness/dsh-dkitchen/` | The Python-era bundle: an MCP client row pointed at `ding mcp-serve` |
+| `src/dkitchen-node/` | The plugin runtime: the same kitchen registered in-process through `ctx.agents`, `ctx.sessions`, `ctx.jobs`, and `ctx.tools` |
+
+Both runtimes are live. They read the same `.dkitchen.toml` and write the same
+`sessions.json`, so they must not run against one state directory at once. `src/dkitchen-node/`
+holds its own test suite (`node --test 'tests/*.test.mjs'`), which must stay green alongside
+`python -m pytest`.
+
+## Where the plugin runtime's rules live
+
+The Node port translates the Python behaviour rather than redesigning it, so a change to a rule
+belongs in both until the Python runtime is removed:
+
+| Rule | Python | Node |
+| --- | --- | --- |
+| Configuration and its refusals | `config.py` | `lib/config.js` |
+| Ticket role, status block, staleness | `watch.py` | `lib/tickets.js` |
+| Relay, merge, log ordering | `orchestrate.py` | `lib/orchestrate.js` |
+| Reference checking | `refs.py` | `lib/refs.js` |
+| Registry schema | `registry.py` | `lib/registry.js` |
+
+`tests/test_market.py` and `src/dkitchen-node/tests/config.test.mjs` both exist because the two
+readers must accept exactly the same files: a file one accepts and the other rejects is a bug
+the user meets as "it worked yesterday".
 
 ## Changing the harness integration
 

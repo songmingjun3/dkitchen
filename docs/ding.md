@@ -4,6 +4,14 @@
 
 Every session it drives is a real DeepSeek Harness session: the harness creates it, persists it, and shows it in its GUI. `ding` adds the kitchen's vocabulary on top — stations, tickets, status blocks, the launch and wake-up loop — and never invents a second notion of "session".
 
+> **Two runtimes, one kitchen.** The tools now ship as a harness plugin that runs *inside* the
+> harness process, which is what makes installing it sufficient: no Python package, no kitchen
+> profile, no broker, no MCP server. The `ding` CLI in this guide still works and still owns the
+> parts a plugin cannot reach — setup, the market index, `harness init`, and driving sessions
+> from a terminal. See [The plugin runtime](#the-plugin-runtime) for what moved and what stayed.
+> Do not run both against the same state directory at once: they write the same `sessions.json`,
+> and the last writer wins.
+
 - [Before you start](#before-you-start)
 - [A quick tour](#a-quick-tour)
 - [Start and stop the broker: `up`, `down`](#start-and-stop-the-broker-up-down)
@@ -17,6 +25,7 @@ Every session it drives is a real DeepSeek Harness session: the harness creates 
 - [Run a long job: `launch`, `logs`, `stop`](#run-a-long-job-launch-logs-stop)
 - [Wrap a command yourself: `run`](#wrap-a-command-yourself-run)
 - [Stations and models: `config`](#stations-and-models-config)
+- [The plugin runtime](#the-plugin-runtime)
 - [Use dkitchen inside the harness: `plugin`](#use-dkitchen-inside-the-harness-plugin)
 - [Install from the page: the plugin market](#install-from-the-page-the-plugin-market)
 - [The harness profile: `harness init`](#the-harness-profile-harness-init)
@@ -391,6 +400,35 @@ ding config set harness.profile lab
 ```
 
 `enable`/`disable` write `[kitchen] stations`; `set` writes one dotted key, creating the table it needs and keeping everything else. `[models.<station>]` set per-station routes; a station without one inherits `[harness] default_provider` / `default_model`.
+
+## The plugin runtime
+
+The kitchen's tools also ship as a harness plugin that runs inside the harness process. That
+version needs nothing else: installing the bundle is the whole installation, because
+
+| The CLI needed | The plugin uses |
+| --- | --- |
+| a broker holding an ACP connection | `ctx.agents` in the same process |
+| a separate harness profile to boot | the profile the user already runs |
+| an MCP server subprocess for the tools | `ctx.tools.register` directly |
+| `ding launch` plus tmux or a detached process | `ctx.jobs`, which announces a settlement as an in-session notice |
+| reading session logs off disk | `ctx.sessions` |
+
+Its tools are named `dkitchen_*` rather than `mcp__dkitchen__*`, and the session tools are the
+same ones this guide documents. Three differences are worth knowing:
+
+- **The repository comes from the session.** One harness process serves many repositories, so
+  every call resolves `.dkitchen.toml` from the directory the session works in, and
+  `dkitchen_status` reports `rootSource` — `argument`, `session`, or `process` — because a
+  guessed directory and a configured one produce the same empty kitchen and need different fixes.
+- **`approve` becomes a policy, not a prompt.** The harness already asks the user through its own
+  panel, so the plugin answers only what `[approval] allow` names and defers everything else.
+  With no `[approval]` section it changes no permission behaviour at all.
+- **`board` shows what this process holds.** The CLI could read logs from disk and therefore see
+  sessions another process opened; a plugin sees its own process's sessions plus the registry. A
+  session opened outside dkitchen still appears, without a name or station.
+
+The bundle lives at `src/dkitchen-node/`, and its `README.md` lists every tool and every setting.
 
 ## Use dkitchen inside the harness: `plugin`
 
